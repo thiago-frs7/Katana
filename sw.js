@@ -1,17 +1,19 @@
 const CACHE_VERSION = 'ibasho-v1';
+// Caminhos relativos ao próprio sw.js — funciona tanto servido na raiz do domínio (Netlify)
+// quanto num subcaminho (ex: GitHub Pages em /Katana/).
 const APP_SHELL = [
-  '/',
-  '/index.html',
-  '/manifest.json',
-  '/icons/icon-192.png',
-  '/icons/icon-512.png',
-  '/icons/icon-maskable-192.png',
-  '/icons/icon-maskable-512.png',
-  '/assets/models/zoro_katana.glb',
-  '/vendor/three/build/three.module.js',
-  '/vendor/three/examples/jsm/loaders/GLTFLoader.js',
-  '/vendor/three/examples/jsm/controls/OrbitControls.js',
-  '/vendor/three/examples/jsm/utils/BufferGeometryUtils.js',
+  './',
+  './index.html',
+  './manifest.json',
+  './icons/icon-192.png',
+  './icons/icon-512.png',
+  './icons/icon-maskable-192.png',
+  './icons/icon-maskable-512.png',
+  './assets/models/zoro_katana.glb',
+  './vendor/three/build/three.module.js',
+  './vendor/three/examples/jsm/loaders/GLTFLoader.js',
+  './vendor/three/examples/jsm/controls/OrbitControls.js',
+  './vendor/three/examples/jsm/utils/BufferGeometryUtils.js',
 ];
 
 // APIs de dados externos — sempre busca da rede, nunca serve do cache (dados desatualizados
