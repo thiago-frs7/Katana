@@ -174,7 +174,8 @@ label.f { font-size:.6rem; color:var(--dim); letter-spacing:1px; text-transform:
     linear-gradient(180deg, #0a0806 0%, #05070c 60%, #030509 100%);
   box-shadow: inset 0 0 60px rgba(0,0,0,.6), 0 0 30px rgba(255,122,26,.06);
 }
-.souls-embers { position:absolute; inset:0; pointer-events:none;
+.souls-embers { position:absolute; inset:0; pointer-events:none; overflow:hidden;
+  /* fallback CSS enquanto o canvas Three.js ainda não montou (evita "flash" vazio) */
   background: radial-gradient(2px 2px at 20% 85%, rgba(255,170,80,.9), transparent),
               radial-gradient(1.5px 1.5px at 70% 90%, rgba(255,140,50,.8), transparent),
               radial-gradient(1.5px 1.5px at 45% 95%, rgba(255,200,120,.7), transparent),
@@ -182,6 +183,8 @@ label.f { font-size:.6rem; color:var(--dim); letter-spacing:1px; text-transform:
   animation: embersFloat 6s ease-in-out infinite;
   opacity:.8;
 }
+.souls-embers.js-mounted { background:none; animation:none; }
+.souls-embers canvas { position:absolute; inset:0; width:100%; height:100%; display:block; }
 @keyframes embersFloat { 0%,100%{ transform:translateY(0); opacity:.6; } 50%{ transform:translateY(-18px); opacity:1; } }
 .souls-header { display:flex; flex-direction:column; align-items:center; position:relative; z-index:1; }
 .souls-title { font-family:'Cinzel',serif; font-size:1.1rem; letter-spacing:5px; text-transform:uppercase; color:var(--gold-souls-hi); text-shadow:0 0 14px rgba(240,207,122,.5); }
@@ -758,7 +761,7 @@ label.f { font-size:.6rem; color:var(--dim); letter-spacing:1px; text-transform:
 
     <section id="perfil" class="tab">
       <div class="souls-panel">
-        <div class="souls-embers"></div>
+        <div class="souls-embers" id="ascension-3d"></div>
         <div class="souls-header">
           <div class="souls-title">Ascensão</div>
           <div class="souls-level"><span id="lvl">1</span><span class="souls-level-lbl">Nível</span></div>
@@ -2594,6 +2597,9 @@ function showTab(id){
   else document.getElementById('btn-'+id)?.classList.add('active');
   closeMoreSheet();
   window.scrollTo({top:0, behavior:'smooth'});
+  // partículas 3D do painel de Ascensão: só rodam enquanto a aba Perfil está visível
+  if(id==='perfil'){ if(window.mountAscensionParticles) mountAscensionParticles(document.getElementById('ascension-3d')); }
+  else if(window.pauseAscensionParticles) pauseAscensionParticles();
 }
 function openMoreSheet(){ sndNav(); document.getElementById('sheet-more').classList.add('open'); }
 function closeMoreSheet(){ document.getElementById('sheet-more').classList.remove('open'); }
@@ -2755,6 +2761,107 @@ function mountGlb3D(container, url, opts){
 
 window.mountGlb3D = mountGlb3D;
 window.disposeGlb3D = disposeGlb3D;
+
+// ---------- partículas ambiente (embers) do painel de Ascensão ----------
+// Ao contrário do viewer de relíquias, este fica montado a sessão toda depois da primeira
+// visita à aba Perfil — só pausa/retoma o loop de render (não recria a cena), porque o
+// container nunca sofre innerHTML=... vindo do render() central (é seguro manter vivo).
+let ascension = null; // { renderer, scene, camera, particles, speeds, raf, resizeObserver, container }
+
+function emberSpriteTexture(){
+  const c = document.createElement('canvas'); c.width = c.height = 64;
+  const ctx = c.getContext('2d');
+  const g = ctx.createRadialGradient(32,32,0,32,32,32);
+  g.addColorStop(0, 'rgba(255,255,255,1)');
+  g.addColorStop(0.35, 'rgba(255,210,140,.9)');
+  g.addColorStop(1, 'rgba(255,150,60,0)');
+  ctx.fillStyle = g; ctx.fillRect(0,0,64,64);
+  return new THREE.CanvasTexture(c);
+}
+
+function initAscension(container){
+  const w = container.clientWidth || 300, h = container.clientHeight || 200;
+  const scene = new THREE.Scene();
+  const aspect = w/h;
+  const viewH = 2; // unidades de mundo visíveis verticalmente, mapeadas pra altura do painel
+  const camera = new THREE.OrthographicCamera(-viewH*aspect/2, viewH*aspect/2, viewH/2, -viewH/2, 0.1, 10);
+  camera.position.z = 5;
+
+  const renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio||1, 2));
+  renderer.setSize(w, h);
+  container.appendChild(renderer.domElement);
+  container.classList.add('js-mounted');
+
+  const COUNT = 90;
+  const positions = new Float32Array(COUNT*3);
+  const colors = new Float32Array(COUNT*3);
+  const speeds = new Float32Array(COUNT);
+  const emberColor = new THREE.Color(0xff7a1a), goldColor = new THREE.Color(0xf0cf7a);
+  for(let i=0;i<COUNT;i++){
+    positions[i*3] = (Math.random()-0.5) * viewH*aspect;
+    positions[i*3+1] = (Math.random()-0.5) * viewH;
+    positions[i*3+2] = 0;
+    const c = emberColor.clone().lerp(goldColor, Math.random());
+    colors[i*3]=c.r; colors[i*3+1]=c.g; colors[i*3+2]=c.b;
+    speeds[i] = 0.12 + Math.random()*0.22;
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  // PointsMaterial.size é sempre em pixels de tela (não unidades de mundo) — sizeAttenuation
+  // só afeta câmeras em perspectiva, então com OrthographicCamera fica desligado por clareza.
+  const mat = new THREE.PointsMaterial({
+    size: 9 * (Math.min(window.devicePixelRatio||1, 2)), map: emberSpriteTexture(), vertexColors: true,
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, sizeAttenuation: false,
+  });
+  const particles = new THREE.Points(geo, mat);
+  scene.add(particles);
+
+  const resizeObserver = new ResizeObserver(()=>{
+    const nw = container.clientWidth || w, nh = container.clientHeight || h;
+    const a = nw/nh;
+    camera.left = -viewH*a/2; camera.right = viewH*a/2; camera.top = viewH/2; camera.bottom = -viewH/2;
+    camera.updateProjectionMatrix();
+    renderer.setSize(nw, nh);
+  });
+  resizeObserver.observe(container);
+
+  ascension = { renderer, scene, camera, particles, speeds, resizeObserver, container, raf:0, running:false };
+}
+
+function ascensionTick(){
+  if(!ascension || !ascension.running) return;
+  ascension.raf = requestAnimationFrame(ascensionTick);
+  const pos = ascension.particles.geometry.attributes.position;
+  const top = ascension.camera.top;
+  for(let i=0;i<ascension.speeds.length;i++){
+    let y = pos.getY(i) + ascension.speeds[i]*0.012;
+    if(y > top) y = ascension.camera.bottom;
+    pos.setY(i, y);
+  }
+  pos.needsUpdate = true;
+  ascension.renderer.render(ascension.scene, ascension.camera);
+}
+
+function mountAscensionParticles(container){
+  if(!container) return;
+  if(!ascension) initAscension(container);
+  if(!ascension.running){ ascension.running = true; ascensionTick(); }
+}
+function pauseAscensionParticles(){
+  if(!ascension) return;
+  ascension.running = false;
+  cancelAnimationFrame(ascension.raf);
+}
+
+document.addEventListener('visibilitychange', ()=>{
+  if(document.hidden) pauseAscensionParticles();
+  else if(document.getElementById('perfil')?.classList.contains('active')) mountAscensionParticles(document.getElementById('ascension-3d'));
+});
+
+window.mountAscensionParticles = mountAscensionParticles;
+window.pauseAscensionParticles = pauseAscensionParticles;
 </script>
 </body>
 </html>
