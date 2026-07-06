@@ -311,17 +311,15 @@ label.f { font-size:.6rem; color:var(--dim); letter-spacing:1px; text-transform:
 .forest-controls { display:flex; flex-direction:column; gap:2px; }
 .forest-controls .row2 { margin-top:4px; }
 
-.forest-garden {
-  display:grid; grid-template-columns:repeat(auto-fill, minmax(38px,1fr)); gap:5px;
-  background:var(--card); border:1px solid var(--line); border-radius:14px; padding:12px; margin-top:14px;
-  max-height:280px; overflow-y:auto;
+.forest-garden-3d-wrap { position:relative; margin-top:14px; }
+.forest-garden-3d {
+  width:100%; height:280px; border-radius:14px; overflow:hidden; touch-action:none; cursor:grab;
+  background: radial-gradient(120% 100% at 50% 0%, rgba(46,204,113,.12) 0%, transparent 60%), var(--card);
+  border:1px solid var(--line);
 }
-.forest-cell { position:relative; aspect-ratio:1; border-radius:6px; background:rgba(255,255,255,.04); display:flex; align-items:center; justify-content:center; font-size:1.1rem; overflow:hidden; cursor:pointer; }
-.forest-cell img { width:100%; height:100%; object-fit:cover; border-radius:6px; }
-.forest-cell.empty { background:rgba(255,255,255,.02); border:1px dashed rgba(255,255,255,.06); }
-.forest-cell.named { box-shadow: inset 0 0 0 1.5px var(--blue-hi); }
-.forest-cell-label { position:absolute; bottom:0; left:0; right:0; background:rgba(0,5,15,.85); color:#fff; font-size:.42rem; line-height:1.3; padding:1px 2px; text-align:center; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.forest-empty-msg { grid-column:1/-1; text-align:center; font-size:.72rem; color:var(--dim); padding:10px; }
+.forest-garden-3d:active { cursor:grabbing; }
+.forest-garden-3d canvas { width:100%!important; height:100%!important; display:block; }
+.forest-empty-msg { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; text-align:center; font-size:.72rem; color:var(--dim); padding:20px; pointer-events:none; }
 
 .forest-chart { display:flex; align-items:flex-end; gap:6px; height:110px; background:var(--card); border:1px solid var(--line); border-radius:14px; padding:12px 10px 8px; margin-top:10px; }
 .forest-bar-col { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100%; gap:4px; min-width:0; }
@@ -753,7 +751,11 @@ label.f { font-size:.6rem; color:var(--dim); letter-spacing:1px; text-transform:
       <div class="stat-grid" id="forest-today-stats"></div>
 
       <div class="sec-title">Seu Jardim</div>
-      <div class="forest-garden" id="forest-garden"></div>
+      <div class="forest-garden-3d-wrap">
+        <div class="forest-garden-3d" id="forest-garden-3d"></div>
+        <div class="forest-empty-msg" id="forest-garden-empty" style="display:none;">Seu jardim está vazio. Complete um foco pra plantar a primeira muda 🌱</div>
+      </div>
+      <p style="font-size:.62rem; color:var(--dim); margin-top:6px;">Arraste pra girar. Toque numa planta pra renomear.</p>
 
       <div class="sec-title">Horas por dia (últimos 7 dias)</div>
       <div class="forest-chart" id="forest-chart-daily"></div>
@@ -2556,18 +2558,34 @@ function renderForest(){
   renderForestChart('forest-chart-monthly', lastNMonthsTotals(12), false);
 }
 
+const FOREST_GRID_SIZE = 8; // precisa bater com o mesmo valor no módulo Three.js do jardim
+let forestGardenSig = null;
 function renderGarden(){
-  const el = document.getElementById('forest-garden'); if(!el) return;
-  const garden = [...S.forest.garden].reverse().slice(0, 300); // mais recente primeiro, limite de segurança
-  if(!garden.length){
-    el.innerHTML = '<div class="forest-empty-msg">Seu jardim está vazio. Complete um foco pra plantar a primeira muda 🌱</div>';
-    return;
-  }
-  el.innerHTML = garden.map(g=>{
-    const resolved = resolveDecoIcon(g.icon);
-    const label = g.name ? `<div class="forest-cell-label">${esc(g.name)}</div>` : '';
-    return `<div class="forest-cell ${g.name?'named':''}" onclick="renameGardenItem(${g.ts})">${resolved.img?`<img src="${esc(resolved.img)}">`:resolved.text}${label}</div>`;
-  }).join('');
+  const emptyEl = document.getElementById('forest-garden-empty');
+  const garden = [...S.forest.garden].reverse(); // mais recente primeiro
+  if(emptyEl) emptyEl.style.display = garden.length ? 'none' : 'block';
+
+  const maxCells = FOREST_GRID_SIZE*FOREST_GRID_SIZE;
+  const visible = garden.slice(0, maxCells);
+  // assinatura dos dados relevantes: só reconstrói a cena 3D quando algo de fato mudou
+  // (render() roda a cada mudança de estado no app inteiro, tipo ganhar XP em outra aba)
+  const sig = visible.map(g=>`${g.ts}|${g.icon}|${g.name||''}`).join(';') + '::' + S.customDecos.map(d=>d.id+d.img).join(';');
+  if(sig === forestGardenSig) return;
+  forestGardenSig = sig;
+
+  const entries = visible.map((g,i)=>{
+    const isCustom = g.icon && g.icon.startsWith('deco:');
+    const resolved = isCustom ? resolveDecoIcon(g.icon) : null;
+    return {
+      ts: g.ts,
+      gridX: i % FOREST_GRID_SIZE,
+      gridY: Math.floor(i / FOREST_GRID_SIZE),
+      kind: isCustom ? 'custom' : g.icon,
+      img: isCustom ? (resolved.img || null) : null,
+      name: g.name || null,
+    };
+  });
+  if(window.updateForestGarden) updateForestGarden(entries);
 }
 function renameGardenItem(ts){
   const item = S.forest.garden.find(g=>g.ts===ts); if(!item) return;
@@ -2644,6 +2662,9 @@ function showTab(id){
   // partículas 3D do painel de Ascensão: só rodam enquanto a aba Perfil está visível
   if(id==='perfil'){ if(window.mountAscensionParticles) mountAscensionParticles(document.getElementById('ascension-3d')); }
   else if(window.pauseAscensionParticles) pauseAscensionParticles();
+  // diorama 3D do jardim: mesma lógica, só roda enquanto a aba Cultivo está visível
+  if(id==='floresta'){ if(window.mountForestGarden) mountForestGarden(document.getElementById('forest-garden-3d')); }
+  else if(window.pauseForestGarden) pauseForestGarden();
 }
 function openMoreSheet(){ sndNav(); document.getElementById('sheet-more').classList.add('open'); }
 function closeMoreSheet(){ document.getElementById('sheet-more').classList.remove('open'); }
@@ -2913,18 +2934,294 @@ function pauseAscensionParticles(){
   cancelAnimationFrame(ascension.raf);
 }
 
+// ---------- diorama 3D do Jardim (aba Cultivo) ----------
+// Mesmo padrão das partículas de Ascensão: fica montado a sessão toda depois da primeira
+// visita à aba, só pausa/retoma o loop de render. As decorações (árvores etc.) são
+// reconstruídas sob demanda via updateForestGarden(), chamado pelo renderGarden() do script
+// clássico só quando os dados do jardim realmente mudam.
+const FOREST_GRID_SIZE = 8; // precisa bater com o mesmo valor no script clássico
+let forestGarden = null; // { renderer, scene, camera, controls, decorGroup, resizeObserver, raf, running, container }
+let pendingGardenEntries = null;
+
+function seededRandom(seed){
+  const x = Math.sin(seed) * 10000;
+  return x - Math.floor(x);
+}
+
+function grassTileTexture(){
+  const cellPx = 48;
+  const size = cellPx * FOREST_GRID_SIZE;
+  const c = document.createElement('canvas'); c.width = c.height = size;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#3f7d40'; ctx.fillRect(0,0,size,size);
+  for(let y=0;y<FOREST_GRID_SIZE;y++){
+    for(let x=0;x<FOREST_GRID_SIZE;x++){
+      const shade = (seededRandom(x*131.7+y*977.3)-0.5) * 26;
+      ctx.fillStyle = shade>=0 ? `rgba(255,255,255,${shade/255})` : `rgba(0,0,0,${-shade/255})`;
+      ctx.fillRect(x*cellPx, y*cellPx, cellPx, cellPx);
+    }
+  }
+  ctx.strokeStyle = 'rgba(0,0,0,.18)'; ctx.lineWidth = 2;
+  for(let i=0;i<=FOREST_GRID_SIZE;i++){
+    ctx.beginPath(); ctx.moveTo(i*cellPx,0); ctx.lineTo(i*cellPx,size); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0,i*cellPx); ctx.lineTo(size,i*cellPx); ctx.stroke();
+  }
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
+function buildTree(seed){
+  const g = new THREE.Group();
+  const trunkH = 0.2 + seededRandom(seed)*0.05;
+  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.035,0.05,trunkH,6), new THREE.MeshStandardMaterial({color:0x6b4423, roughness:.9}));
+  trunk.position.y = trunkH/2; g.add(trunk);
+  const canopy = new THREE.Mesh(new THREE.IcosahedronGeometry(0.22,0), new THREE.MeshStandardMaterial({color:0x3f8f3f, roughness:.8, flatShading:true}));
+  canopy.position.y = trunkH + 0.16; canopy.scale.y = 1.15;
+  g.add(canopy);
+  return g;
+}
+function buildPine(seed){
+  const g = new THREE.Group();
+  const trunkH = 0.16;
+  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.03,0.04,trunkH,6), new THREE.MeshStandardMaterial({color:0x5a3a22, roughness:.9}));
+  trunk.position.y = trunkH/2; g.add(trunk);
+  const mat = new THREE.MeshStandardMaterial({color:0x2d6b3f, flatShading:true, roughness:.85});
+  for(let i=0;i<3;i++){
+    const h = 0.22 - i*0.05, r = 0.16 - i*0.035;
+    const cone = new THREE.Mesh(new THREE.ConeGeometry(r,h,7), mat);
+    cone.position.y = trunkH + i*0.11 + h/2;
+    g.add(cone);
+  }
+  return g;
+}
+function buildPalm(seed){
+  const g = new THREE.Group();
+  const trunkH = 0.32;
+  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.03,0.045,trunkH,6), new THREE.MeshStandardMaterial({color:0x7a5a35, roughness:.9}));
+  trunk.position.y = trunkH/2; g.add(trunk);
+  const frondMat = new THREE.MeshStandardMaterial({color:0x4a9a4a, roughness:.8, side:THREE.DoubleSide, flatShading:true});
+  const fronds = 6;
+  for(let i=0;i<fronds;i++){
+    const frond = new THREE.Mesh(new THREE.ConeGeometry(0.075,0.36,3), frondMat);
+    frond.position.y = trunkH;
+    frond.rotation.z = Math.PI/2.4;
+    frond.rotation.y = (i/fronds)*Math.PI*2 + seededRandom(seed+i)*0.3;
+    frond.position.x = Math.cos((i/fronds)*Math.PI*2)*0.1;
+    frond.position.z = Math.sin((i/fronds)*Math.PI*2)*0.1;
+    g.add(frond);
+  }
+  return g;
+}
+function buildFlower(seed){
+  const g = new THREE.Group();
+  const stemH = 0.14;
+  const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.012,0.015,stemH,5), new THREE.MeshStandardMaterial({color:0x3f8f3f, roughness:.85}));
+  stem.position.y = stemH/2; g.add(stem);
+  const colors = [0xf0cf7a, 0xff8fb0, 0xffffff, 0xb57bee];
+  const petalColor = colors[Math.floor(seededRandom(seed)*colors.length)];
+  const head = new THREE.Mesh(new THREE.DodecahedronGeometry(0.08,0), new THREE.MeshStandardMaterial({color:petalColor, roughness:.6, flatShading:true}));
+  head.position.y = stemH + 0.03;
+  g.add(head);
+  return g;
+}
+function buildHouse(seed){
+  const g = new THREE.Group();
+  const body = new THREE.Mesh(new THREE.BoxGeometry(0.26,0.18,0.24), new THREE.MeshStandardMaterial({color:0xd8c9a3, roughness:.9}));
+  body.position.y = 0.09; g.add(body);
+  const roof = new THREE.Mesh(new THREE.ConeGeometry(0.22,0.16,4), new THREE.MeshStandardMaterial({color:0xa8452f, roughness:.8, flatShading:true}));
+  roof.position.y = 0.18 + 0.08; roof.rotation.y = Math.PI/4;
+  g.add(roof);
+  return g;
+}
+function buildTent(seed){
+  const g = new THREE.Group();
+  const tent = new THREE.Mesh(new THREE.ConeGeometry(0.2,0.22,4), new THREE.MeshStandardMaterial({color:0xd97b3f, roughness:.85, flatShading:true}));
+  tent.position.y = 0.11; tent.rotation.y = Math.PI/4;
+  g.add(tent);
+  return g;
+}
+function buildCrystal(seed){
+  const g = new THREE.Group();
+  const mat = new THREE.MeshStandardMaterial({color:0x7ee8fa, emissive:0x2e6b8f, emissiveIntensity:.6, roughness:.3, metalness:.2, flatShading:true});
+  const crystal = new THREE.Mesh(new THREE.OctahedronGeometry(0.14,0), mat);
+  crystal.position.y = 0.16; crystal.scale.y = 1.4;
+  g.add(crystal);
+  return g;
+}
+function buildCustomBillboard(imgUrl){
+  const g = new THREE.Group();
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(0.09,0.1,0.03,10), new THREE.MeshStandardMaterial({color:0x6b4423, roughness:.9}));
+  base.position.y = 0.015; g.add(base);
+  const tex = new THREE.TextureLoader().load(imgUrl);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex }));
+  sprite.scale.set(0.4,0.4,1);
+  sprite.position.y = 0.24;
+  g.add(sprite);
+  return g;
+}
+
+function buildDecoration(entry){
+  switch(entry.kind){
+    case '🌳': return buildTree(entry.ts);
+    case '🌲': return buildPine(entry.ts);
+    case '🌴': return buildPalm(entry.ts);
+    case '🌻': return buildFlower(entry.ts);
+    case '🏠': return buildHouse(entry.ts);
+    case '⛺': return buildTent(entry.ts);
+    case '🔮': return buildCrystal(entry.ts);
+    case 'custom': return buildCustomBillboard(entry.img);
+    default: return buildTree(entry.ts);
+  }
+}
+
+function rebuildForestDecorations(entries){
+  const group = forestGarden.decorGroup;
+  group.traverse(obj=>{
+    if(obj.geometry) obj.geometry.dispose();
+    if(obj.material){
+      const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+      mats.forEach(m=>{
+        Object.values(m).forEach(v=>{ if(v && v.isTexture) v.dispose(); });
+        m.dispose();
+      });
+    }
+  });
+  while(group.children.length) group.remove(group.children[0]);
+
+  entries.forEach(entry=>{
+    const deco = buildDecoration(entry);
+    const worldX = entry.gridX - (FOREST_GRID_SIZE-1)/2;
+    const worldZ = entry.gridY - (FOREST_GRID_SIZE-1)/2;
+    const jitterX = (seededRandom(entry.ts)-0.5)*0.3;
+    const jitterZ = (seededRandom(entry.ts+1)-0.5)*0.3;
+    deco.position.set(worldX+jitterX, 0, worldZ+jitterZ);
+    deco.rotation.y = seededRandom(entry.ts+2) * Math.PI*2;
+    deco.scale.setScalar(1.7 + seededRandom(entry.ts+3)*0.5);
+    deco.userData.ts = entry.ts;
+    group.add(deco);
+  });
+}
+
+function updateForestGarden(entries){
+  if(!forestGarden){ pendingGardenEntries = entries; return; }
+  rebuildForestDecorations(entries);
+}
+
+function initForestGarden(container){
+  const w = container.clientWidth || 300, h = container.clientHeight || 280;
+  const scene = new THREE.Scene();
+  const plateSize = FOREST_GRID_SIZE;
+  const viewSize = plateSize * 1.12;
+  const aspect = w/h;
+  const camera = new THREE.OrthographicCamera(-viewSize*aspect/2, viewSize*aspect/2, viewSize/2, -viewSize/2, 0.1, 100);
+  camera.position.set(6,6.4,6);
+  camera.lookAt(0,0,0);
+
+  const renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio||1, 2));
+  renderer.setSize(w, h);
+  container.appendChild(renderer.domElement);
+
+  scene.add(new THREE.AmbientLight(0x8fa3ba, 0.65));
+  const sun = new THREE.DirectionalLight(0xfff1d0, 1.15); sun.position.set(5,8,4); scene.add(sun);
+  const fill = new THREE.DirectionalLight(0x2e9bff, 0.3); fill.position.set(-4,3,-5); scene.add(fill);
+
+  // base do jardim: bloco com topo de grama (textura) e laterais de terra
+  const thickness = 0.3;
+  const sideMat = new THREE.MeshStandardMaterial({color:0x4a3323, roughness:1});
+  const bottomMat = new THREE.MeshStandardMaterial({color:0x2e2018, roughness:1});
+  const topMat = new THREE.MeshStandardMaterial({map:grassTileTexture(), roughness:.9});
+  const plate = new THREE.Mesh(
+    new THREE.BoxGeometry(plateSize, thickness, plateSize),
+    [sideMat, sideMat, topMat, bottomMat, sideMat, sideMat]
+  );
+  plate.position.y = -thickness/2;
+  scene.add(plate);
+
+  const decorGroup = new THREE.Group();
+  scene.add(decorGroup);
+
+  const controls = new OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true;
+  controls.enableZoom = false;
+  controls.enablePan = false;
+  controls.autoRotate = true;
+  controls.autoRotateSpeed = 0.6;
+  controls.minPolarAngle = Math.PI/4.2;
+  controls.maxPolarAngle = Math.PI/2.6;
+
+  const resizeObserver = new ResizeObserver(()=>{
+    const nw = container.clientWidth || w, nh = container.clientHeight || h;
+    const a = nw/nh;
+    camera.left = -viewSize*a/2; camera.right = viewSize*a/2; camera.top = viewSize/2; camera.bottom = -viewSize/2;
+    camera.updateProjectionMatrix();
+    renderer.setSize(nw, nh);
+  });
+  resizeObserver.observe(container);
+
+  // toque numa planta específica renomeia ela (distingue clique de arraste pela distância percorrida)
+  let downPos = null;
+  const raycaster = new THREE.Raycaster();
+  const ndc = new THREE.Vector2();
+  container.addEventListener('pointerdown', (ev)=>{ downPos = {x:ev.clientX, y:ev.clientY}; });
+  container.addEventListener('pointerup', (ev)=>{
+    if(!downPos) return;
+    const moved = Math.hypot(ev.clientX-downPos.x, ev.clientY-downPos.y);
+    downPos = null;
+    if(moved > 6) return; // foi arraste (girar câmera), não clique
+    const rect = container.getBoundingClientRect();
+    ndc.x = ((ev.clientX-rect.left)/rect.width)*2-1;
+    ndc.y = -((ev.clientY-rect.top)/rect.height)*2+1;
+    raycaster.setFromCamera(ndc, camera);
+    const hits = raycaster.intersectObjects(decorGroup.children, true);
+    if(!hits.length) return;
+    let obj = hits[0].object;
+    while(obj && obj.userData.ts===undefined) obj = obj.parent;
+    if(obj && obj.userData.ts!==undefined && window.renameGardenItem) renameGardenItem(obj.userData.ts);
+  });
+
+  forestGarden = { renderer, scene, camera, controls, decorGroup, resizeObserver, container, raf:0, running:false };
+
+  if(pendingGardenEntries){ rebuildForestDecorations(pendingGardenEntries); pendingGardenEntries = null; }
+}
+
+function forestTick(){
+  if(!forestGarden || !forestGarden.running) return;
+  forestGarden.raf = requestAnimationFrame(forestTick);
+  forestGarden.controls.update();
+  forestGarden.renderer.render(forestGarden.scene, forestGarden.camera);
+}
+
+function mountForestGarden(container){
+  if(!container) return;
+  if(!forestGarden) initForestGarden(container);
+  if(!forestGarden.running){ forestGarden.running = true; forestTick(); }
+}
+function pauseForestGarden(){
+  if(!forestGarden) return;
+  forestGarden.running = false;
+  cancelAnimationFrame(forestGarden.raf);
+}
+
 document.addEventListener('visibilitychange', ()=>{
   if(document.hidden){
     pauseAscensionParticles();
+    pauseForestGarden();
     disposeAllGlbViewers(); // para todo viewer 3D (grade de relíquias, modal etc.) enquanto o app tá em segundo plano
   }else{
     if(document.getElementById('perfil')?.classList.contains('active')) mountAscensionParticles(document.getElementById('ascension-3d'));
+    if(document.getElementById('floresta')?.classList.contains('active')) mountForestGarden(document.getElementById('forest-garden-3d'));
     if(window.observeRelic3DMounts) observeRelic3DMounts(); // reavalia quais cards estão visíveis e remonta
   }
 });
 
 window.mountAscensionParticles = mountAscensionParticles;
 window.pauseAscensionParticles = pauseAscensionParticles;
+window.mountForestGarden = mountForestGarden;
+window.pauseForestGarden = pauseForestGarden;
+window.updateForestGarden = updateForestGarden;
 </script>
 </body>
 </html>
