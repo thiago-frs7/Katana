@@ -388,6 +388,12 @@ label.f { font-size:.6rem; color:var(--dim); letter-spacing:1px; text-transform:
 .relic-card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px; text-align:center; cursor:pointer; transition:.2s; }
 .relic-card:hover { background:var(--card-hover); }
 .relic-card img { width:100%; height:130px; object-fit:contain; background:rgba(0,0,0,.4); border-radius:10px; margin-bottom:8px; }
+.relic-3d-mount {
+  width:100%; height:130px; border-radius:10px; margin-bottom:8px; position:relative; overflow:hidden;
+  background:radial-gradient(circle at center,#0f2650 0%,#020814 100%); touch-action:none; cursor:grab;
+}
+.relic-3d-mount:active { cursor:grabbing; }
+.relic-3d-mount canvas { width:100%!important; height:100%!important; display:block; }
 
 #boot { position:fixed; inset:0; background:linear-gradient(160deg,var(--bg1),var(--bg0)); z-index:2000; display:flex; align-items:center; justify-content:center; }
 .boot-box { text-align:center; padding:36px; width:90%; max-width:400px; }
@@ -1683,7 +1689,44 @@ function renderLives(){
   }).join('') || '<p style="font-size:.75rem; color:var(--dim); margin-top:12px;">Nenhuma live registrada ainda.</p>';
 }
 
-function renderRelics(){ document.getElementById('list-relics').innerHTML=S.relics.filter(r=>r.obtained).map(r=>`<div class="relic-card" onclick="openRelic(${r.id})">${r.img?`<img src="${esc(r.img)}">`:''}<div style="font-size:.75rem; font-weight:600;">${esc(r.title)}${(r.model3d||r.model)?' <span class="relic-3d-badge">◆ 3D</span>':''}</div></div>`).join(''); }
+let relicsGridSig = null;
+function renderRelics(){
+  const list = S.relics.filter(r=>r.obtained);
+  // assinatura dos dados relevantes: se nada mudou, não mexe no DOM — preserva os
+  // viewers 3D já montados (render() roda a cada mudança de estado, tipo ganhar XP)
+  const sig = list.map(r=>[r.id,r.title,r.img,r.model3d,r.model].join('')).join('');
+  if(sig === relicsGridSig) return;
+  relicsGridSig = sig;
+  document.getElementById('list-relics').innerHTML = list.map(r=>{
+    const badge = (r.model3d||r.model) ? ' <span class="relic-3d-badge">◆ 3D</span>' : '';
+    const media = r.model3d
+      ? `<div class="relic-3d-mount" id="relic3d-${r.id}" data-url="${esc(r.model3d)}" onclick="event.stopPropagation()"></div>`
+      : (r.img ? `<img src="${esc(r.img)}">` : '');
+    return `<div class="relic-card" onclick="openRelic(${r.id})">${media}<div style="font-size:.75rem; font-weight:600;">${esc(r.title)}${badge}</div></div>`;
+  }).join('');
+  observeRelic3DMounts();
+}
+
+// ---------- ativa/desativa viewers 3D da grade de Relíquias conforme entram/saem da tela ----------
+// Evita ter vários contextos WebGL rodando ao mesmo tempo (custa bateria/memória no celular) —
+// só os cards realmente visíveis (ou perto de ficar) têm um viewer Three.js ativo.
+let relicGridObserver = null;
+function observeRelic3DMounts(){
+  if(relicGridObserver) relicGridObserver.disconnect();
+  const mounts = document.querySelectorAll('.relic-3d-mount');
+  if(!mounts.length) return;
+  relicGridObserver = new IntersectionObserver((entries)=>{
+    entries.forEach(entry=>{
+      const el = entry.target, key = el.id;
+      if(entry.isIntersecting && !document.hidden){
+        if(window.mountGlbViewer) mountGlbViewer(key, el, el.dataset.url);
+      }else{
+        if(window.disposeGlbViewer) disposeGlbViewer(key);
+      }
+    });
+  }, { rootMargin:'100px', threshold:0.1 });
+  mounts.forEach(el=>relicGridObserver.observe(el));
+}
 function testModel3D(){
   if(window.disposeGlb3D) disposeGlb3D();
   document.getElementById('t3d-preview-glb').style.display='none';
@@ -2667,11 +2710,16 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 // innerHTML de vários containers a cada mudança de estado (XP, missão concluída etc.).
 // Se um <canvas> do Three.js ficar dentro de um container que sofre innerHTML=...,
 // o contexto WebGL morre e recria toda hora. Por isso este viewer só é montado/desmontado
-// sob demanda (abrir/fechar modal, trocar de relíquia) — nunca dentro do ciclo de render().
+// sob demanda (abrir/fechar modal, trocar de relíquia, entrar/sair da tela) — nunca dentro
+// do ciclo de render().
+//
+// Suporta múltiplas instâncias simultâneas (uma por card visível na grade de Relíquias,
+// mais o do modal), cada uma identificada por uma chave (key) própria num Map.
 
-let viewer = null; // { renderer, scene, camera, controls, raf, resizeObserver, container }
+const viewers = new Map(); // key -> { renderer, scene, camera, controls, raf, resizeObserver, container }
 
-function disposeGlb3D(){
+function disposeGlbViewer(key){
+  const viewer = viewers.get(key);
   if(!viewer) return;
   cancelAnimationFrame(viewer.raf);
   viewer.resizeObserver.disconnect();
@@ -2689,12 +2737,15 @@ function disposeGlb3D(){
   viewer.renderer.dispose();
   viewer.renderer.forceContextLoss();
   if(viewer.renderer.domElement.parentNode) viewer.renderer.domElement.parentNode.removeChild(viewer.renderer.domElement);
-  viewer = null;
+  viewers.delete(key);
+}
+function disposeAllGlbViewers(){
+  for(const key of Array.from(viewers.keys())) disposeGlbViewer(key);
 }
 
-function mountGlb3D(container, url, opts){
+function mountGlbViewer(key, container, url, opts){
   opts = opts || {};
-  disposeGlb3D();
+  disposeGlbViewer(key);
   container.innerHTML = '';
 
   const w = container.clientWidth || 300, h = container.clientHeight || 300;
@@ -2707,7 +2758,7 @@ function mountGlb3D(container, url, opts){
 
   // iluminação no clima souls-like do resto do app: luz fria de key + rim quente de ember
   scene.add(new THREE.AmbientLight(0x8fa3ba, 0.7));
-  const key = new THREE.DirectionalLight(0x2e9bff, 1.1); key.position.set(3,4,5); scene.add(key);
+  const keyLight = new THREE.DirectionalLight(0x2e9bff, 1.1); keyLight.position.set(3,4,5); scene.add(keyLight);
   const rim = new THREE.DirectionalLight(0xff7a1a, 0.8); rim.position.set(-4,-1,-3); scene.add(rim);
 
   const controls = new OrbitControls(camera, renderer.domElement);
@@ -2750,17 +2801,23 @@ function mountGlb3D(container, url, opts){
   resizeObserver.observe(container);
 
   function tick(){
-    viewer.raf = requestAnimationFrame(tick);
+    entry.raf = requestAnimationFrame(tick);
     controls.update();
     renderer.render(scene, camera);
   }
 
-  viewer = { renderer, scene, camera, controls, resizeObserver, container, raf:0 };
+  const entry = { renderer, scene, camera, controls, resizeObserver, container, raf:0 };
+  viewers.set(key, entry);
   tick();
 }
 
-window.mountGlb3D = mountGlb3D;
-window.disposeGlb3D = disposeGlb3D;
+// API de instância única (compatível com o modal de Relíquias e o teste na Forja)
+window.mountGlb3D = (container, url, opts) => mountGlbViewer('__single', container, url, opts);
+window.disposeGlb3D = () => disposeGlbViewer('__single');
+// API multi-instância (grade de Relíquias — um viewer por card visível)
+window.mountGlbViewer = mountGlbViewer;
+window.disposeGlbViewer = disposeGlbViewer;
+window.disposeAllGlbViewers = disposeAllGlbViewers;
 
 // ---------- partículas ambiente (embers) do painel de Ascensão ----------
 // Ao contrário do viewer de relíquias, este fica montado a sessão toda depois da primeira
@@ -2856,8 +2913,13 @@ function pauseAscensionParticles(){
 }
 
 document.addEventListener('visibilitychange', ()=>{
-  if(document.hidden) pauseAscensionParticles();
-  else if(document.getElementById('perfil')?.classList.contains('active')) mountAscensionParticles(document.getElementById('ascension-3d'));
+  if(document.hidden){
+    pauseAscensionParticles();
+    disposeAllGlbViewers(); // para todo viewer 3D (grade de relíquias, modal etc.) enquanto o app tá em segundo plano
+  }else{
+    if(document.getElementById('perfil')?.classList.contains('active')) mountAscensionParticles(document.getElementById('ascension-3d'));
+    if(window.observeRelic3DMounts) observeRelic3DMounts(); // reavalia quais cards estão visíveis e remonta
+  }
 });
 
 window.mountAscensionParticles = mountAscensionParticles;
