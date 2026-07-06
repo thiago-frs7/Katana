@@ -22,11 +22,11 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
-      - name: Prepara pasta pública (sem .git/.github)
+      - name: Prepara pasta pública (sem .git/.github/tools)
         run: |
           mkdir -p _site
           shopt -s extglob dotglob
-          cp -r !(.git|.github|_site) _site/
+          cp -r !(.git|.github|_site|tools) _site/
       - uses: actions/configure-pages@v5
         with:
           enablement: true
