@@ -18,7 +18,11 @@
   --bronze:#cd7f32; --silver:#c7d3dd; --goldc:#e8b923; --plat:#7ee8fa;
   --ok:#2ecc71; --warn:#e67e22; --bad:#e74c3c;
 }
-* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; scrollbar-width:thin; scrollbar-color:rgba(255,255,255,.18) transparent; }
+::-webkit-scrollbar { width:10px; height:10px; }
+::-webkit-scrollbar-track { background:transparent; }
+::-webkit-scrollbar-thumb { background:rgba(255,255,255,.15); border-radius:8px; }
+::-webkit-scrollbar-thumb:hover { background:rgba(255,255,255,.28); }
 body {
   font-family:'Sora',system-ui,sans-serif; color:var(--text); min-height:100vh;
   background: radial-gradient(1200px 600px at 70% -10%, #123a6e 0%, transparent 60%),
@@ -129,11 +133,18 @@ header { display:flex; align-items:center; justify-content:space-between; paddin
 
 .btn { background:var(--blue); border:none; color:#fff; padding:12px 18px; font-family:'Sora'; font-weight:600; cursor:pointer; font-size:.75rem; border-radius:24px; width:100%; margin-bottom:8px; transition:.2s; }
 .btn:hover { background:var(--blue-hi); }
+.btn:active { transform:scale(.97); }
 .btn.ghost { background:rgba(255,255,255,.08); }
+.btn.ghost:hover { background:rgba(255,255,255,.16); }
 .btn.danger { background:#5c1a1a; }
+.btn.danger:hover { background:#7a2222; }
 .btn.small { width:auto; padding:9px 16px; }
+.btn:disabled { opacity:.45; cursor:not-allowed; transform:none; }
 
-input,select,textarea { width:100%; background:rgba(0,0,0,.35); border:1px solid var(--line); color:#fff; padding:12px; font-family:'Sora'; margin-bottom:10px; font-size:16px; border-radius:10px; }
+input,select,textarea { width:100%; background:rgba(0,0,0,.35); border:1px solid var(--line); color:#fff; padding:12px; font-family:'Sora'; margin-bottom:10px; font-size:16px; border-radius:10px; transition:.2s; }
+input:focus, select:focus, textarea:focus { outline:none; border-color:var(--blue-hi); box-shadow:0 0 0 3px rgba(46,155,255,.15); }
+input[type="checkbox"] { width:auto; accent-color:var(--blue-hi); cursor:pointer; }
+button:focus-visible, .chip:focus-visible, .sheet-item:focus-visible { outline:2px solid var(--blue-hi); outline-offset:2px; }
 input[type="file"] { display:flex; align-items:center; color:var(--dim); font-size:.72rem; cursor:pointer; }
 input[type="file"]::file-selector-button {
   background:var(--blue); border:none; color:#fff; padding:9px 16px;
@@ -145,6 +156,7 @@ label.f { font-size:.6rem; color:var(--dim); letter-spacing:1px; text-transform:
 .row2 { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
 .panel { background:var(--card); border:1px solid var(--line); border-radius:16px; padding:20px; margin-bottom:14px; box-shadow:0 4px 18px rgba(0,0,0,.18); }
 .panel.danger-zone { border-color:rgba(231,76,60,.3); background:rgba(231,76,60,.05); }
+.empty-state { text-align:center; padding:26px 16px; font-size:.72rem; line-height:1.6; color:var(--dim); background:rgba(255,255,255,.02); border:1px dashed var(--line); border-radius:14px; }
 .edit-item { background:rgba(0,0,0,.3); border:1px solid var(--line); border-radius:12px; padding:14px; margin-bottom:10px; }
 
 /* ---------- fogueira/perfil ---------- */
@@ -215,6 +227,7 @@ label.f { font-size:.6rem; color:var(--dim); letter-spacing:1px; text-transform:
 .chips { display:flex; gap:6px; flex-wrap:wrap; margin:12px 0; }
 .chip { font-size:.62rem; font-weight:600; color:var(--dim); border:1px solid var(--line); background:rgba(0,0,0,.25); padding:7px 13px; cursor:pointer; border-radius:16px; transition:.2s; }
 .chip.on { color:#fff; background:var(--blue); border-color:var(--blue); }
+.chip:hover { border-color:var(--blue-hi); color:var(--text); }
 
 .mal-tabs { display:flex; gap:0; overflow-x:auto; scrollbar-width:none; margin-top:14px; border-bottom:1px solid var(--line); }
 .mal-tabs::-webkit-scrollbar { display:none; }
@@ -254,6 +267,9 @@ label.f { font-size:.6rem; color:var(--dim); letter-spacing:1px; text-transform:
 .fin-amount.neg { color:var(--bad); }
 .fin-amount.pos { color:var(--ok); }
 .fin-actions { display:flex; flex-direction:column; gap:6px; align-items:flex-end; }
+.mini-btn { background:rgba(0,114,206,.18); border:1px solid rgba(0,114,206,.4); color:var(--blue-hi); font-family:'Sora'; font-weight:700; font-size:.62rem; padding:5px 11px; border-radius:12px; cursor:pointer; white-space:nowrap; transition:.2s; }
+.mini-btn:hover { background:var(--blue); color:#fff; }
+.mini-btn:active { transform:scale(.94); }
 .timeline-item { display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid var(--line); font-size:.75rem; }
 .timeline-item:last-child { border-bottom:none; }
 .timeline-date { color:var(--dim); font-size:.65rem; }
@@ -403,6 +419,8 @@ label.f { font-size:.6rem; color:var(--dim); letter-spacing:1px; text-transform:
 .area-card { position:relative; width:100%; height:200px; margin-bottom:14px; border-radius:16px; overflow:hidden; display:flex; align-items:flex-end; padding:20px; background-size:cover; background-position:center; border:1px solid var(--line); cursor:pointer; transition:.2s; }
 .area-card:hover { border-color:var(--blue-hi); }
 .area-card::after { content:''; position:absolute; inset:0; background:linear-gradient(0deg,rgba(0,5,15,.92) 10%,transparent 70%); }
+.area-card.no-img { background:linear-gradient(135deg, rgba(0,114,206,.28), rgba(10,30,63,.7)); }
+.area-card.no-img::before { content:'🏝️'; position:absolute; top:18px; right:18px; font-size:2.6rem; opacity:.3; }
 .area-card h3 { position:relative; z-index:1; }
 .area-note-count { position:relative; z-index:1; font-size:.62rem; color:var(--dim); margin-top:4px; }
 .area-note-item { background:rgba(0,0,0,.3); border:1px solid var(--line); border-radius:10px; padding:10px 12px; margin-bottom:8px; }
@@ -413,6 +431,7 @@ label.f { font-size:.6rem; color:var(--dim); letter-spacing:1px; text-transform:
 .relic-card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px; text-align:center; cursor:pointer; transition:.2s; }
 .relic-card:hover { background:var(--card-hover); }
 .relic-card img { width:100%; height:130px; object-fit:contain; background:rgba(0,0,0,.4); border-radius:10px; margin-bottom:8px; }
+.relic-cover-ph { width:100%; height:130px; display:flex; align-items:center; justify-content:center; font-size:2.2rem; background:rgba(0,0,0,.4); border-radius:10px; margin-bottom:8px; color:var(--plat); }
 
 #boot { position:fixed; inset:0; background:linear-gradient(160deg,var(--bg1),var(--bg0)); z-index:2000; display:flex; align-items:center; justify-content:center; }
 .boot-box { text-align:center; padding:36px; width:90%; max-width:400px; }
@@ -990,7 +1009,7 @@ label.f { font-size:.6rem; color:var(--dim); letter-spacing:1px; text-transform:
       <div class="panel">
         <div class="row2">
           <div><label class="f">Mês</label><input type="month" id="fin-history-month" onchange="renderFinHistory()"></div>
-          <div><button class="btn small ghost ghost" style="margin-top:22px;" onclick="openTransactionModal()">+ Lançar Transação</button></div>
+          <div><button class="btn small ghost" style="margin-top:22px;" onclick="openTransactionModal()">+ Lançar Transação</button></div>
         </div>
         <div class="stat-grid" id="fin-history-totals" style="margin:10px 0;"></div>
         <div id="fin-history-list"></div>
@@ -1028,10 +1047,15 @@ label.f { font-size:.6rem; color:var(--dim); letter-spacing:1px; text-transform:
         </select>
 
         <div id="fv-m" class="fv">
-          <input id="m-title" placeholder="Título">
+          <label class="f">Título</label>
+          <input id="m-title" placeholder="Ex: Zerar Elden Ring">
+          <label class="f">Área vinculada (opcional)</label>
           <select id="m-area"></select>
+          <label class="f">Recompensa em relíquia (opcional)</label>
           <select id="m-relic"></select>
+          <label class="f">Dificuldade</label>
           <select id="m-diff"><option>Fácil</option><option>Médio</option><option>Difícil</option><option>Boss</option><option>Lendária</option></select>
+          <label class="f">XP ao concluir</label>
           <input id="m-xp" type="number" value="100">
           <label style="display:flex; align-items:center; gap:8px; font-size:.72rem; color:var(--dim); margin-bottom:10px; cursor:pointer;">
             <input type="checkbox" id="m-trophy-on" style="width:auto; margin:0;" onchange="toggleTrophyFields('m')"> Vincular um troféu a esta missão
@@ -1045,8 +1069,11 @@ label.f { font-size:.6rem; color:var(--dim); letter-spacing:1px; text-transform:
         </div>
 
         <div id="fv-d" class="fv" style="display:none">
-          <input id="d-title" placeholder="Nome do Hábito">
+          <label class="f">Nome do Hábito</label>
+          <input id="d-title" placeholder="Ex: Treinar kung fu 30min">
+          <label class="f">Frequência</label>
           <select id="d-cycle"><option value="daily">Diário</option><option value="weekly">Semanal</option></select>
+          <label class="f">XP ao concluir</label>
           <input id="d-xp" type="number" value="50">
           <label style="display:flex; align-items:center; gap:8px; font-size:.72rem; color:var(--dim); margin-bottom:10px; cursor:pointer;">
             <input type="checkbox" id="d-trophy-on" style="width:auto; margin:0;" onchange="toggleTrophyFields('d')"> Vincular um troféu a este hábito
@@ -1072,7 +1099,9 @@ label.f { font-size:.6rem; color:var(--dim); letter-spacing:1px; text-transform:
         </div>
 
         <div id="fv-a" class="fv" style="display:none">
-          <input id="a-title" placeholder="Nome">
+          <label class="f">Nome da Área</label>
+          <input id="a-title" placeholder="Ex: Konoha">
+          <label class="f">Imagem de fundo</label>
           <input id="a-img" placeholder="Link da Imagem (ou envie do celular)">
           <button class="btn small ghost" onclick="searchGoogleImages('a-title')">🔍 Buscar no Google Imagens</button>
           <input type="file" accept="image/*" onchange="handleImageUpload(event,'a-img','a-img-preview')">
@@ -1081,7 +1110,9 @@ label.f { font-size:.6rem; color:var(--dim); letter-spacing:1px; text-transform:
         </div>
 
         <div id="fv-r" class="fv" style="display:none">
-          <input id="r-title" placeholder="Relíquia">
+          <label class="f">Nome da Relíquia</label>
+          <input id="r-title" placeholder="Ex: Katana Lendária">
+          <label class="f">Imagem</label>
           <input id="r-img" placeholder="Link da Imagem (ou envie do celular)">
           <button class="btn small ghost" onclick="searchGoogleImages('r-title')">🔍 Buscar no Google Imagens</button>
           <input type="file" accept="image/*" onchange="handleImageUpload(event,'r-img','r-img-preview')">
@@ -1091,7 +1122,9 @@ label.f { font-size:.6rem; color:var(--dim); letter-spacing:1px; text-transform:
             <input id="r-sketch-search" placeholder="Ex: katana, espada...">
             <button class="btn small ghost" onclick="searchSketchfab('r-sketch-search')">🔍 Buscar</button>
           </div>
+          <label class="f">Modelo 3D (opcional)</label>
           <input id="r-model" placeholder="Link de Embed do Sketchfab (3D) — opcional">
+          <label class="f">Descrição</label>
           <textarea id="r-desc" placeholder="História/Descrição"></textarea>
           <button class="btn" onclick="addRelic()">Forjar</button>
         </div>
@@ -1113,8 +1146,10 @@ label.f { font-size:.6rem; color:var(--dim); letter-spacing:1px; text-transform:
 
         <div id="fv-s" class="fv" style="display:none">
           <p style="font-size:.72rem; color:var(--dim); margin-bottom:10px;">Crie uma habilidade personalizada — aparece na aba Perfil, junto dos atributos, e evolui do mesmo jeito (investindo almas).</p>
-          <input id="s-icon" placeholder="Ícone (emoji, opcional)" maxlength="2">
-          <input id="s-name" placeholder="Nome da Skill (ex: Kung Fu, Culinária...)">
+          <label class="f">Ícone (opcional)</label>
+          <input id="s-icon" placeholder="Ex: ⚔️" maxlength="2">
+          <label class="f">Nome da Skill</label>
+          <input id="s-name" placeholder="Ex: Kung Fu, Culinária...">
           <button class="btn" onclick="addSkill()">Criar Skill</button>
         </div>
 
@@ -1711,7 +1746,7 @@ function renderMissions(){
       </div>
       ${missionRewardsHtml(m)}
     </div>`;
-  }).join('')||'<div style="font-size:.72rem; color:var(--dim);">Nenhum hábito ainda.</div>';
+  }).join('')||'<div class="empty-state">🗓️ Nenhum hábito ainda. Crie um na aba Criar.</div>';
   document.getElementById('list-missions').innerHTML=uniques.map(m=>`
     <div class="card" style="flex-direction:column; align-items:stretch;">
       <div style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
@@ -1719,7 +1754,7 @@ function renderMissions(){
         <button class="btn small" onclick="complete(${m.id})" style="flex-shrink:0;">Concluir</button>
       </div>
       ${missionRewardsHtml(m)}
-    </div>`).join('')||'<div style="font-size:.72rem; color:var(--dim);">Nenhuma missão ativa.</div>';
+    </div>`).join('')||'<div class="empty-state">⚔️ Nenhuma missão ativa no momento.</div>';
   document.getElementById('list-done').innerHTML=S.completed.slice(-6).reverse().map(m=>
     `<div class="card" style="font-size:.75rem;">${esc(m.title)} <span style="color:var(--dim); font-size:.65rem;">${m.date||''}</span></div>`).join('');
 }
@@ -1782,10 +1817,10 @@ function addArea(){ const t=document.getElementById('a-title').value.trim(); if(
 function addRelic(){ const t=document.getElementById('r-title').value.trim(); if(!t)return; S.relics.push({id:Date.now(),title:t,img:document.getElementById('r-img').value,model:document.getElementById('r-model').value.trim(),desc:document.getElementById('r-desc').value,obtained:false}); document.getElementById('r-title').value=''; document.getElementById('r-model').value=''; render(); }
 function renderAreas(){ document.getElementById('list-areas').innerHTML=S.areas.map(a=>{
   const n=(a.notes||[]).length;
-  return `<div class="area-card" style="background-image:url('${esc(a.img)}')" onclick="openAreaModal(${a.id})">
+  return `<div class="area-card ${a.img?'':'no-img'}" style="${a.img?`background-image:url('${esc(a.img)}')`:''}" onclick="openAreaModal(${a.id})">
     <div><h3>${esc(a.title)}</h3><div class="area-note-count">${n} ${n===1?'nota':'notas'}</div></div>
   </div>`;
-}).join(''); }
+}).join('') || '<div class="empty-state">🏝️ Nenhuma ilha criada ainda. Crie uma na aba Criar.</div>'; }
 let maCurrentId = null;
 function openAreaModal(id){
   const a = S.areas.find(x=>x.id===id); if(!a) return;
@@ -1811,7 +1846,7 @@ function renderAreaNotes(){
           <button class="area-note-del" onclick="deleteAreaNote(${n.id})">Apagar</button>
         </span>
       </div>
-    </div>`).join('') || '<p style="font-size:.72rem; color:var(--dim);">Nenhuma nota ainda.</p>';
+    </div>`).join('') || '<p class="empty-state">📝 Nenhuma nota ainda.</p>';
 }
 function editAreaNote(noteId){
   const a = S.areas.find(x=>x.id===maCurrentId); if(!a) return;
@@ -1953,7 +1988,7 @@ function renderIncomeList(){
         <div class="fin-item-meta">Todo dia ${i.day}</div>
       </div>
       <span class="fin-amount pos">+R$ ${Number(i.amount).toFixed(2)}</span>
-    </div>`).join('') || '<p style="font-size:.72rem; color:var(--dim);">Nenhum recebimento cadastrado.</p>';
+    </div>`).join('') || '<p class="empty-state">🪙 Nenhum recebimento cadastrado.</p>';
 }
 function openIncomeModal(id){
   const i = id?S.finance.income.find(x=>x.id===id):null;
@@ -2000,7 +2035,7 @@ function renderBillsList(){
         ${b.status==='pendente'?`<button class="mini-btn" onclick="event.stopPropagation();markBillPaid(${b.id})">Marcar pago</button>`:''}
       </div>
     </div>`;
-  }).join('') || '<p style="font-size:.72rem; color:var(--dim);">Nenhuma conta cadastrada.</p>';
+  }).join('') || '<p class="empty-state">🧾 Nenhuma conta cadastrada.</p>';
 }
 function openBillModal(id){
   const b = id?S.finance.bills.find(x=>x.id===id):null;
@@ -2074,7 +2109,7 @@ function renderFinHistory(){
     <div class="fin-item">
       <div><div class="fin-item-desc">${esc(t.desc)}</div><div class="fin-item-meta">${new Date(t.date+'T00:00:00').toLocaleDateString('pt-BR')} · ${t.source==='import'?'importado':'manual'}</div></div>
       <span class="fin-amount ${t.type==='saida'?'neg':'pos'}">${t.type==='saida'?'-':'+'}R$ ${Math.abs(t.amount).toFixed(2)}</span>
-    </div>`).join('') || '<p style="font-size:.72rem; color:var(--dim);">Nenhuma transação neste mês.</p>';
+    </div>`).join('') || '<p class="empty-state">📄 Nenhuma transação neste mês.</p>';
 }
 
 // ---------- importação de CSV ----------
@@ -2196,7 +2231,7 @@ function renderCategories(){
       </div>
       ${cap ? `<div class="cat-bar-bg"><div class="cat-bar-fill ${level}" style="width:${pct}%"></div></div>` : `<div class="cat-nocap">⚠️ Sem teto definido para este mês — toque pra configurar</div>`}
     </div>`;
-  }).join('') || '<p style="font-size:.72rem; color:var(--dim);">Nenhuma categoria ainda.</p>';
+  }).join('') || '<p class="empty-state">🏷️ Nenhuma categoria ainda.</p>';
 }
 function openCategoryModal(id){
   const c = id ? S.finance.categories.find(x=>x.id===id) : null;
@@ -2335,7 +2370,7 @@ function checkBudgetNotifications(){
 function renderFinance(){
   buildFinScopeToggle();
   document.getElementById('fin-notif-btn').style.display = (('Notification' in window) && Notification.permission!=='granted') ? 'block' : 'none';
-  document.getElementById('fin-balance').value = S.finance.balance || '';
+  document.getElementById('fin-balance').value = S.finance.balance ? S.finance.balance.toFixed(2) : '';
   document.getElementById('fin-balance-updated').innerText = S.finance.balanceUpdatedAt ? 'Atualizado em '+new Date(S.finance.balanceUpdatedAt).toLocaleString('pt-BR') : 'Nunca atualizado — informe seu saldo atual.';
   renderCategories();
   renderFinDailyChart();
@@ -2366,10 +2401,16 @@ function renderLives(){
       </div>
       <button class="edit-icon-btn" onclick="openLiveModal(${l.id})">✎</button>
     </div>`;
-  }).join('') || '<p style="font-size:.75rem; color:var(--dim); margin-top:12px;">Nenhuma live registrada ainda.</p>';
+  }).join('') || '<p class="empty-state" style="margin-top:12px;">📺 Nenhuma live registrada ainda.</p>';
 }
 
-function renderRelics(){ document.getElementById('list-relics').innerHTML=S.relics.filter(r=>r.obtained).map(r=>`<div class="relic-card" onclick="openRelic(${r.id})">${r.img?`<img src="${esc(r.img)}">`:''}<div style="font-size:.75rem; font-weight:600;">${esc(r.title)}${r.model?' <span class="relic-3d-badge">◆ 3D</span>':''}</div></div>`).join(''); }
+function renderRelics(){
+  document.getElementById('list-relics').innerHTML = S.relics.filter(r=>r.obtained).map(r=>`
+    <div class="relic-card" onclick="openRelic(${r.id})">
+      ${r.img?`<img src="${esc(r.img)}">`:`<div class="relic-cover-ph">💎</div>`}
+      <div style="font-size:.75rem; font-weight:600;">${esc(r.title)}${r.model?' <span class="relic-3d-badge">◆ 3D</span>':''}</div>
+    </div>`).join('') || '<div class="empty-state" style="grid-column:1/-1;">💎 Nenhuma relíquia obtida ainda. Complete missões pra desbloquear.</div>';
+}
 function testModel3D(){
   const raw = document.getElementById('t3d-url').value.trim();
   const prev = document.getElementById('t3d-preview');
@@ -2444,7 +2485,7 @@ function buildAttrGrid(){
         <span class="souls-stat-val" id="val-skill-${s.id}">${s.level}</span>
         <span class="souls-stat-preview" id="prev-skill-${s.id}">→</span>
       </span>
-    </div>`).join('') || '<div style="font-size:.68rem; color:var(--dim); padding:10px 4px;">Nenhuma skill criada ainda — crie uma na Forja.</div>';
+    </div>`).join('') || '<div class="empty-state">✨ Nenhuma skill criada ainda — crie uma na Forja.</div>';
 
   document.getElementById('attr-grid').innerHTML = `
     <div class="souls-subtitle">Atributos</div>
@@ -2593,7 +2634,7 @@ function renderGrim(){
       ${reorderBtns}
       <button class="edit-icon-btn" onclick="openGrimModal(${g.id})">✎</button>
     </div>`;
-  }).join('') || '<p style="font-size:.75rem; color:var(--dim); margin-top:12px;">Nada aqui ainda. Adicione seu primeiro registro.</p>';
+  }).join('') || '<p class="empty-state" style="margin-top:12px;">📖 Nada aqui ainda. Adicione seu primeiro registro.</p>';
 }
 function moveGrimOrder(id, dir){
   const list = getFilteredGrimList();
@@ -2715,7 +2756,7 @@ function renderDesafiosList(){
       <input type="checkbox" style="width:auto;" ${d.done?'checked':''} onchange="toggleDesafio(${d.id})">
       <span style="flex:1; font-size:.78rem; ${d.done?'opacity:.5; text-decoration:line-through;':''}">${esc(d.text)}</span>
       <button class="area-note-del" onclick="deleteDesafio(${d.id})">✕</button>
-    </div>`).join('') || '<p style="font-size:.68rem; color:var(--dim);">Nenhum desafio ainda.</p>';
+    </div>`).join('') || '<p class="empty-state">🎯 Nenhum desafio ainda.</p>';
 }
 function addDesafio(){
   const input = document.getElementById('g-desafio-input');
@@ -2979,7 +3020,7 @@ function renderEdit(){
     (S.skills.map(s=>`<div class="edit-item">
       <input value="${esc(s.name)}" onchange="S.skills.find(x=>x.id===${s.id}).name=this.value;buildAttrGrid();render()">
       <button class="btn danger" onclick="deleteSkill(${s.id})">Excluir</button>
-    </div>`).join('') || '<div style="font-size:.7rem; color:var(--dim);">Nenhuma skill criada.</div>');
+    </div>`).join('') || '<div class="empty-state">✨ Nenhuma skill criada.</div>');
 }
 
 // ---------- backup ----------
@@ -3177,6 +3218,7 @@ const BUILDING_TIERS = {
   '🌳': [ {count:30, name:'Casarão', icon:'🏛️'}, {count:80, name:'Castelo Antigo', icon:'🏰'} ],
   '🌴': [ {count:25, name:'Choupana na Praia', icon:'🏖️'}, {count:70, name:'Resort Tropical', icon:'🌺'} ],
 };
+const DECO_ICON_NAMES = { '🌳':'Árvore', '🌸':'Sakura', '🌲':'Pinheiro', '🌴':'Palmeira' };
 function treesForArea(areaId){ return S.forest.garden.filter(g=>(g.areaId||null)===(areaId||null)); }
 function countByIcon(areaId, icon){ return treesForArea(areaId).filter(g=>g.icon===icon).length; }
 function tierProgress(areaId, icon){
@@ -3224,7 +3266,7 @@ function renderBuildingRecipes(){
     });
   });
   const unassigned = treesForArea(null).length;
-  el.innerHTML = plots.join('') || '<p style="font-size:.72rem; color:var(--dim);">Nenhuma árvore vinculada a uma ilha ainda.</p>';
+  el.innerHTML = plots.join('') || '<p class="empty-state">🌳 Nenhuma árvore vinculada a uma ilha ainda.</p>';
   if(unassigned>0) el.innerHTML += `<p style="font-size:.65rem; color:var(--warn); margin-top:8px;">⚠️ ${unassigned} árvore(s) sem ilha definida — escolha uma ilha ao plantar pra elas contarem pra construções.</p>`;
 }
 function renderAreaBuildings(areaId){
@@ -3233,9 +3275,9 @@ function renderAreaBuildings(areaId){
     const count = countByIcon(areaId, icon);
     if(count<=0) return '';
     const p = tierProgress(areaId, icon);
-    return farmPlotHtml(icon+' nesta ilha', icon, p, count);
+    return farmPlotHtml(DECO_ICON_NAMES[icon]||icon, icon, p, count);
   }).filter(Boolean).join('');
-  el.innerHTML = rows || '<p style="font-size:.7rem; color:var(--dim);">Nenhuma árvore nesta ilha ainda.</p>';
+  el.innerHTML = rows || '<p class="empty-state">🌳 Nenhuma árvore nesta ilha ainda.</p>';
 }
 function renderAreaTrees(areaId){
   const el = document.getElementById('ma-trees'); if(!el) return;
@@ -3243,7 +3285,7 @@ function renderAreaTrees(areaId){
   el.innerHTML = trees.map(g=>{
     const resolved = resolveDecoIcon(g.icon);
     return `<div class="forest-cell">${resolved.img?`<img src="${esc(resolved.img)}">`:resolved.text}</div>`;
-  }).join('') || '<p style="font-size:.7rem; color:var(--dim);">Nenhuma árvore aqui ainda.</p>';
+  }).join('') || '<p class="empty-state">🌳 Nenhuma árvore aqui ainda.</p>';
 }
 
 // ---------- Desafios (banco + sorteio semanal) ----------
@@ -3286,7 +3328,7 @@ function renderWeekChallenges(){
     <div class="card ${c.done?'done':''}">
       <div style="font-size:.85rem; font-weight:600;">${esc(c.text)} <span style="font-size:.6rem; color:var(--dim);">+${c.xp} XP</span></div>
       ${c.done?'<span style="font-size:.62rem; color:var(--ok); font-weight:700;">✓ Feito</span>':`<button class="btn small" onclick="completeChallenge(${c.id})">Concluir</button>`}
-    </div>`).join('') || '<p style="font-size:.72rem; color:var(--dim);">Cadastre desafios no banco (Forja → Banco de Desafios) pra começar a sortear.</p>';
+    </div>`).join('') || '<p class="empty-state">🎲 Cadastre desafios no banco (Forja → Banco de Desafios) pra começar a sortear.</p>';
 }
 function addChallengeToPool(){
   const text = document.getElementById('ch-text').value.trim(); if(!text) return;
@@ -3310,7 +3352,7 @@ function renderChallengePool(){
         <input type="number" value="${c.xp}" onchange="S.challengePool.find(x=>x.id===${c.id}).xp=parseInt(this.value)||30;persist()">
         <button class="btn danger" onclick="deleteChallengePoolItem(${c.id})">Excluir</button>
       </div>
-    </div>`).join('') || '<p style="font-size:.7rem; color:var(--dim);">Nenhum desafio cadastrado ainda.</p>';
+    </div>`).join('') || '<p class="empty-state">🎯 Nenhum desafio cadastrado ainda.</p>';
 }
 
 function renderGarden(){
