@@ -39,10 +39,9 @@ import urllib.parse
 import urllib.request
 import zipfile
 
+from model_index import REPO_ROOT, MODELS_DIR, slugify, write_index
+
 API_BASE = "https://api.sketchfab.com/v3"
-REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-MODELS_DIR = os.path.join(REPO_ROOT, "assets", "models")
-INDEX_PATH = os.path.join(MODELS_DIR, "index.json")
 
 
 def get_token():
@@ -81,14 +80,6 @@ def api_get(path, token=None, params=None):
         sys.exit(1)
 
 
-def slugify(text):
-    return re.sub(r'[^a-z0-9]+', '-', text.lower()).strip('-')
-
-
-def prettify(slug):
-    return re.sub(r'[-_]+', ' ', slug).strip().title()
-
-
 def cmd_search(args):
     data = api_get("/search", params={"type": "models", "q": args.query, "downloadable": "true", "count": args.limit})
     results = data.get("results", [])
@@ -98,45 +89,6 @@ def cmd_search(args):
     for r in results:
         user = r.get("user", {}).get("username", "?")
         print(f"{r['uid']}  \"{r['name']}\"  por {user}  ->  https://sketchfab.com/3d-models/{r['uid']}")
-
-
-def rebuild_index():
-    """Varre assets/models/ e monta a lista de modelos disponíveis pro app escolher."""
-    entries = []
-    if not os.path.isdir(MODELS_DIR):
-        return entries
-    for entry in sorted(os.listdir(MODELS_DIR)):
-        full = os.path.join(MODELS_DIR, entry)
-        if os.path.isdir(full):
-            label = None
-            meta_path = os.path.join(full, "_meta.json")
-            if os.path.isfile(meta_path):
-                try:
-                    with open(meta_path, encoding="utf-8") as f:
-                        label = json.load(f).get("label")
-                except (OSError, json.JSONDecodeError):
-                    pass
-            model_file = None
-            for root, _, files in os.walk(full):
-                for f in files:
-                    if f.endswith((".glb", ".gltf")):
-                        model_file = os.path.relpath(os.path.join(root, f), MODELS_DIR).replace(os.sep, "/")
-                        break
-                if model_file:
-                    break
-            if model_file:
-                entries.append({"name": entry, "label": label or prettify(entry), "path": f"assets/models/{model_file}"})
-        elif entry.endswith((".glb", ".gltf")):
-            name = os.path.splitext(entry)[0]
-            entries.append({"name": name, "label": prettify(name), "path": f"assets/models/{entry}"})
-    return entries
-
-
-def write_index():
-    entries = rebuild_index()
-    with open(INDEX_PATH, "w", encoding="utf-8") as f:
-        json.dump(entries, f, ensure_ascii=False, indent=2)
-    return entries
 
 
 def run_git(args):
