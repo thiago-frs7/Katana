@@ -412,6 +412,7 @@ label.f { font-size:.6rem; color:var(--dim); letter-spacing:1px; text-transform:
     <p id="mr-desc" style="color:var(--dim); line-height:1.6; font-size:.85rem;"></p>
     <div id="mr-model-add" style="text-align:left; margin-top:16px;">
       <label class="f">Modelo 3D self-hosted (.glb — funciona offline)</label>
+      <select id="mr-model3d-select" style="display:none;" onchange="if(this.value) document.getElementById('mr-model3d-input').value=this.value;"></select>
       <input id="mr-model3d-input" placeholder="Ex: assets/models/zoro_katana.glb">
       <label class="f">Buscar no Sketchfab</label>
       <div class="row2">
@@ -904,6 +905,7 @@ label.f { font-size:.6rem; color:var(--dim); letter-spacing:1px; text-transform:
           <input type="file" accept="image/*" onchange="handleImageUpload(event,'r-img','r-img-preview')">
           <img id="r-img-preview" style="display:none; max-width:100px; max-height:140px; border-radius:8px; margin-bottom:10px;">
           <label class="f">Modelo 3D self-hosted (.glb — funciona offline)</label>
+          <select id="r-model3d-select" style="display:none;" onchange="if(this.value) document.getElementById('r-model3d').value=this.value;"></select>
           <input id="r-model3d" placeholder="Ex: assets/models/zoro_katana.glb">
           <p style="font-size:.62rem; color:var(--dim); margin:-6px 0 10px;">Pra baixar um modelo do Sketchfab pra cá, use <code>tools/fetch_sketchfab_model.py</code> no seu PC (fora do app).</p>
           <label class="f">Buscar no Sketchfab</label>
@@ -921,6 +923,7 @@ label.f { font-size:.6rem; color:var(--dim); letter-spacing:1px; text-transform:
             ⚠️ O Claude bloqueia, por segurança, iframes de sites externos (Sketchfab incluso) dentro do artifact. Modelos Sketchfab só carregam quando você abre o arquivo <code>.html</code> direto num navegador comum (fora do Claude). O teste de modelo self-hosted (.glb) abaixo funciona normalmente aqui também.
           </div>
           <label class="f">Modelo 3D self-hosted (.glb — testa com Three.js, funciona offline)</label>
+          <select id="t3d-glb-select" style="display:none;" onchange="if(this.value) document.getElementById('t3d-glb-url').value=this.value;"></select>
           <input id="t3d-glb-url" placeholder="Ex: assets/models/zoro_katana.glb">
           <button class="btn" onclick="testModelGlb()">Carregar Teste (.glb)</button>
           <div id="t3d-preview-glb" class="modal-3d" style="margin-top:14px; display:none;"></div>
@@ -1772,6 +1775,27 @@ function toSketchfabEmbed(url){
   if(m) return `https://sketchfab.com/models/${m[1]}/embed?${params}`;
   return url; // se não reconhecer o padrão, tenta usar como veio (pode já ser outro provedor de embed)
 }
+// ---------- índice de modelos 3D já baixados (assets/models/index.json, gerado pelo tools/fetch_sketchfab_model.py) ----------
+let modelIndexCache = null;
+async function loadModelIndex(){
+  if(modelIndexCache) return modelIndexCache;
+  try{
+    const res = await fetch('assets/models/index.json');
+    if(!res.ok) throw new Error('sem índice ainda');
+    modelIndexCache = await res.json();
+  }catch(e){ modelIndexCache = []; }
+  return modelIndexCache;
+}
+async function populateModelPicker(selectId, currentValue){
+  const sel = document.getElementById(selectId);
+  if(!sel) return;
+  const models = await loadModelIndex();
+  if(!models.length){ sel.style.display='none'; return; }
+  sel.innerHTML = '<option value="">— escolher modelo já baixado —</option>' +
+    models.map(m=>`<option value="${esc(m.path)}" ${m.path===currentValue?'selected':''}>${esc(m.label||m.name)}</option>`).join('');
+  sel.style.display = 'block';
+}
+
 let mrCurrentId = null;
 function openRelic(id){ const r=S.relics.find(x=>x.id===id); if(!r)return;
   if(window.disposeGlb3D) disposeGlb3D(); // fecha qualquer viewer 3D que ainda esteja rodando de antes
@@ -1779,6 +1803,7 @@ function openRelic(id){ const r=S.relics.find(x=>x.id===id); if(!r)return;
   document.getElementById('mr-title').innerText=r.title;
   document.getElementById('mr-desc').innerText=r.desc||'Uma relíquia misteriosa.';
   document.getElementById('mr-model3d-input').value = r.model3d || '';
+  populateModelPicker('mr-model3d-select', r.model3d || '');
   document.getElementById('mr-model-input').value = r.model || '';
   const cont=document.getElementById('mr-img');
   cont.innerHTML='';
@@ -2337,6 +2362,8 @@ function forgeView(){
   if(v!=='t' && window.disposeGlb3D) disposeGlb3D(); // sai do modo de teste 3D: para o loop de render
   document.querySelectorAll('.fv').forEach(e=>e.style.display='none');
   document.getElementById('fv-'+v).style.display='block';
+  if(v==='r') populateModelPicker('r-model3d-select', document.getElementById('r-model3d').value);
+  if(v==='t') populateModelPicker('t3d-glb-select', document.getElementById('t3d-glb-url').value);
 }
 function renderEdit(){
   document.getElementById('edit-m').innerHTML='<div class="sec-title">Missões e hábitos</div>'+
@@ -2349,7 +2376,9 @@ function renderEdit(){
     S.relics.map((r,i)=>`<div class="edit-item">
       <label class="f">Nome</label><input value="${esc(r.title)}" onchange="S.relics[${i}].title=this.value;render()">
       <label class="f">Imagem</label><input value="${esc(r.img||'')}" onchange="S.relics[${i}].img=this.value;render()">
-      <label class="f">Modelo 3D self-hosted (.glb)</label><input value="${esc(r.model3d||'')}" placeholder="Ex: assets/models/zoro_katana.glb" onchange="S.relics[${i}].model3d=this.value.trim()||null;render()">
+      <label class="f">Modelo 3D self-hosted (.glb)</label>
+      <select id="edit-model3d-select-${r.id}" style="display:none;" onchange="if(this.value){ S.relics[${i}].model3d=this.value; render(); }"></select>
+      <input value="${esc(r.model3d||'')}" placeholder="Ex: assets/models/zoro_katana.glb" onchange="S.relics[${i}].model3d=this.value.trim()||null;render()">
       <label class="f">Ou modelo 3D (embed Sketchfab)</label><input value="${esc(r.model||'')}" placeholder="Link da página ou do embed do Sketchfab" onchange="S.relics[${i}].model=this.value.trim();render()">
       <div class="row2">
         <input id="edit-sketch-search-${r.id}" placeholder="Ex: katana, espada...">
@@ -2359,6 +2388,7 @@ function renderEdit(){
       <label class="f">Obtida?</label><select onchange="S.relics[${i}].obtained=this.value==='sim';render()"><option value="nao" ${!r.obtained?'selected':''}>Não</option><option value="sim" ${r.obtained?'selected':''}>Sim</option></select>
       <button class="btn danger" onclick="S.relics.splice(${i},1);render()">Excluir</button>
     </div>`).join('');
+  S.relics.forEach(r=>populateModelPicker('edit-model3d-select-'+r.id, r.model3d||''));
   document.getElementById('edit-a').innerHTML='<div class="sec-title">Mapas/Áreas</div>'+
     S.areas.map((a,i)=>`<div class="edit-item">
       <input value="${esc(a.title)}" onchange="S.areas[${i}].title=this.value;render()">

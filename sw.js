@@ -10,6 +10,7 @@ const APP_SHELL = [
   './icons/icon-maskable-192.png',
   './icons/icon-maskable-512.png',
   './assets/models/zoro_katana.glb',
+  './assets/models/index.json',
   './vendor/three/build/three.module.js',
   './vendor/three/examples/jsm/loaders/GLTFLoader.js',
   './vendor/three/examples/jsm/controls/OrbitControls.js',
