@@ -116,6 +116,16 @@ header { display:flex; align-items:center; justify-content:space-between; paddin
 .sheet-item:active { transform:scale(.94); background:rgba(0,114,206,.18); }
 .sheet-item .nav-ico { font-size:1.5rem; }
 
+/* ---------- personalização da navegação (aba Sistema) ---------- */
+.nav-settings-row { display:flex; align-items:center; gap:10px; padding:10px 0; border-bottom:1px solid rgba(255,255,255,.06); }
+.nav-settings-row:last-child { border-bottom:none; }
+.nav-settings-row .nav-ico { font-size:1.1rem; width:22px; text-align:center; flex-shrink:0; }
+.nav-settings-name { flex:1; min-width:0; background:rgba(0,0,0,.25); border:1px solid var(--line); border-radius:8px; color:var(--text); padding:7px 10px; font-family:'Sora'; font-size:.72rem; }
+.nav-settings-actions { display:flex; gap:4px; flex-shrink:0; }
+.nav-settings-btn { background:rgba(255,255,255,.08); border:1px solid var(--line); color:var(--dim); border-radius:8px; padding:6px 9px; font-size:.7rem; line-height:1; cursor:pointer; transition:.2s; }
+.nav-settings-btn:disabled { opacity:.25; cursor:default; }
+.nav-settings-btn.is-hidden { color:var(--warn); border-color:var(--warn); }
+
 .container { max-width:960px; margin:6px auto; padding:0 16px 130px; }
 .tab { display:none; animation:fade .4s ease; }
 .tab.active { display:block; }
@@ -662,24 +672,11 @@ label.f { font-size:.6rem; color:var(--dim); letter-spacing:1px; text-transform:
     <div class="sheet-content" onclick="event.stopPropagation()">
       <div class="sheet-handle"></div>
       <div class="sec-title" style="margin:0 0 14px;">Mais opções</div>
-      <div class="sheet-grid">
-        <div class="sheet-item" onclick="showTab('trofeus')"><span class="nav-ico">🏆</span><span class="nav-lbl">Troféus</span></div>
-        <div class="sheet-item" onclick="showTab('areas')"><span class="nav-ico">🗺️</span><span class="nav-lbl">Mapas</span></div>
-        <div class="sheet-item" onclick="showTab('reliquias')"><span class="nav-ico">💎</span><span class="nav-lbl">Relíquias</span></div>
-        <div class="sheet-item" onclick="showTab('forja')"><span class="nav-ico">🔨</span><span class="nav-lbl">Criar</span></div>
-        <div class="sheet-item" onclick="showTab('memoria')"><span class="nav-ico">⚙️</span><span class="nav-lbl">Sistema</span></div>
-      </div>
+      <div class="sheet-grid"></div>
     </div>
   </div>
 
-  <nav id="bottom-nav">
-    <button onclick="showTab('missoes')" id="btn-missoes" class="active"><span class="nav-ico">⚔️</span><span class="nav-lbl">Missões</span></button>
-    <button onclick="showTab('floresta')" id="btn-floresta"><span class="nav-ico">🌲</span><span class="nav-lbl">Cultivo</span></button>
-    <button onclick="showTab('grimorio')" id="btn-grimorio"><span class="nav-ico">📖</span><span class="nav-lbl">Listas</span></button>
-    <button onclick="showTab('lives')" id="btn-lives"><span class="nav-ico">📺</span><span class="nav-lbl">Lives</span></button>
-    <button onclick="showTab('perfil')" id="btn-perfil"><span class="nav-ico">⭐</span><span class="nav-lbl">Perfil</span></button>
-    <button onclick="openMoreSheet()" id="btn-more"><span class="nav-ico">☰</span><span class="nav-lbl">Mais</span></button>
-  </nav>
+  <nav id="bottom-nav"></nav>
 
   <main class="container">
 
@@ -700,6 +697,13 @@ label.f { font-size:.6rem; color:var(--dim); letter-spacing:1px; text-transform:
 
         <div class="forest-controls" id="forest-setup">
           <div class="chips" id="forest-duration-chips"></div>
+          <div id="forest-custom-duration-wrap" style="display:none; margin:0 0 14px;">
+            <div class="row2">
+              <div><label class="f">Horas</label><input type="number" id="forest-custom-hours" min="0" max="5" value="0"></div>
+              <div><label class="f">Minutos</label><input type="number" id="forest-custom-minutes" min="0" max="59" value="25"></div>
+            </div>
+            <button class="btn ghost small" onclick="applyCustomForestDuration()">Aplicar tempo personalizado</button>
+          </div>
           <div class="row2">
             <div>
               <label class="f">Decoração a plantar</label>
@@ -969,6 +973,13 @@ label.f { font-size:.6rem; color:var(--dim); letter-spacing:1px; text-transform:
       </div>
 
       <div class="panel">
+        <div class="sec-title" style="margin-top:0;">Personalizar navegação</div>
+        <p style="font-size:.72rem; color:var(--dim); margin-bottom:12px;">Reordene, renomeie ou esconda itens do menu. Os primeiros visíveis (até 5) ficam na barra debaixo — o resto vai pro "Mais". "Sistema" não pode ser escondido, pra você sempre conseguir voltar aqui.</p>
+        <div id="nav-settings-list"></div>
+        <button class="btn ghost" style="margin-top:12px;" onclick="resetNavConfig()">Restaurar padrão</button>
+      </div>
+
+      <div class="panel">
         <div class="sec-title" style="margin-top:0;">Dados salvos</div>
         <p style="font-size:.72rem; color:var(--dim); margin-bottom:12px;">Backup manual — útil pra guardar uma cópia extra ou migrar de dispositivo em caso de emergência.</p>
         <button class="btn" onclick="exportSave()">Baixar Save (.json)</button>
@@ -1005,6 +1016,21 @@ const ATTRS = { conhecimento:'📚 Conhecimento', linguagem:'🗿 Linguagem', co
 const GRIM_TYPES = ['Todos','Jogo','Mangá','Anime','Livro','Série/Filme','Outro'];
 const GRIM_STATUS = { todos:'Todos', andamento:'Em Andamento', planejado:'Planejado', concluido:'Concluído', pausado:'Pausado', abandonado:'Abandonado' };
 const TYPE_ICON = { 'Jogo':'🎮','Mangá':'📖','Anime':'🎬','Livro':'📚','Série/Filme':'🎞️','Outro':'✦' };
+// ---------- itens da navegação (usado pra montar a barra debaixo + o "Mais", e a tela de personalização em Sistema) ----------
+const NAV_ITEMS_DEF = [
+  {id:'missoes',   icon:'⚔️', label:'Missões'},
+  {id:'floresta',  icon:'🌲', label:'Cultivo'},
+  {id:'grimorio',  icon:'📖', label:'Listas'},
+  {id:'lives',     icon:'📺', label:'Lives'},
+  {id:'perfil',    icon:'⭐', label:'Perfil'},
+  {id:'trofeus',   icon:'🏆', label:'Troféus'},
+  {id:'areas',     icon:'🗺️', label:'Mapas'},
+  {id:'reliquias', icon:'💎', label:'Relíquias'},
+  {id:'forja',     icon:'🔨', label:'Criar'},
+  {id:'memoria',   icon:'⚙️', label:'Sistema'},
+];
+function defaultNavConfig(){ return NAV_ITEMS_DEF.map(n=>({id:n.id, hidden:false, label:null})); }
+function navItemDef(id){ return NAV_ITEMS_DEF.find(n=>n.id===id); }
 const PROG_LABEL = { 'Jogo':['Horas jogadas','Duração (h)'], 'Mangá':['Capítulos lidos','Capítulos total'], 'Anime':['Episódios vistos','Episódios total'], 'Livro':['Páginas lidas','Páginas total'], 'Série/Filme':['Episódios vistos','Episódios total'], 'Outro':['Progresso','Total'] };
 // ---------- busca automática de capa/info (roteada por tipo) ----------
 // Mangá/Anime -> Jikan (MyAnimeList, sem chave) | Livro -> Google Books (sem chave) | Jogo -> RAWG (precisa de chave gratuita, ver RAWG_API_KEY no topo do arquivo)
@@ -1160,7 +1186,8 @@ function fresh(name){ return {
   missions:[], completed:[], relics:[], areas:[], grim:[], lives:[],
   streak:{count:0,last:null}, trophies:[], customTrophies:[],
   forest:{ sessions:[], garden:[] }, customDecos:[],
-  grimAttrTarget: { 'Livro':'conhecimento', 'Mangá':'cultura', 'Anime':'estetica', 'Jogo':'corpo', 'Série/Filme':'estetica', 'Outro':'geral' }
+  grimAttrTarget: { 'Livro':'conhecimento', 'Mangá':'cultura', 'Anime':'estetica', 'Jogo':'corpo', 'Série/Filme':'estetica', 'Outro':'geral' },
+  navConfig: defaultNavConfig(),
 };}
 
 function today(){ return new Date().toISOString().slice(0,10); }
@@ -1241,6 +1268,14 @@ function normalize(){
   S.customDecos = S.customDecos || [];
   S.grimAttrTarget = S.grimAttrTarget || { 'Livro':'conhecimento', 'Mangá':'cultura', 'Anime':'estetica', 'Jogo':'corpo', 'Série/Filme':'estetica', 'Outro':'geral' };
   S.lives = S.lives || [];
+  if(!Array.isArray(S.navConfig)){ S.navConfig = defaultNavConfig(); }
+  else{
+    const knownIds = NAV_ITEMS_DEF.map(n=>n.id);
+    S.navConfig = S.navConfig.filter(c=>knownIds.includes(c.id));
+    knownIds.forEach(id=>{ if(!S.navConfig.find(c=>c.id===id)) S.navConfig.push({id, hidden:false, label:null}); });
+  }
+  const memoriaCfg = S.navConfig.find(c=>c.id==='memoria');
+  if(memoriaCfg) memoriaCfg.hidden = false; // "Sistema" nunca some, senão não dá pra reabrir essa tela pra mudar de volta
   S.areas.forEach(a=>{ if(!a.notes) a.notes=[]; });
   S.grim.forEach((g,i)=>{
     if(g.favorite===undefined) g.favorite=false;
@@ -1275,7 +1310,7 @@ function enter(){
   document.getElementById('player-name').innerText=S.name;
   renderAvatar();
   renderSyncStatus();
-  buildAttrGrid(); buildGrimFilters(); buildForestDurationChips(); render();
+  buildAttrGrid(); buildGrimFilters(); buildForestDurationChips(); rebuildBottomNav(); renderNavSettings(); render();
 }
 function renderAvatar(){
   const el = document.getElementById('avatar');
@@ -2432,18 +2467,38 @@ let forestRunning = false;
 let forestPaused = false;
 let forestDeco = '🌳';
 
+function formatDuration(mins){
+  const h=Math.floor(mins/60), m=mins%60;
+  if(h>0 && m>0) return `${h}h ${m}min`;
+  if(h>0) return `${h}h`;
+  return `${m}min`;
+}
 function buildForestDurationChips(){
   const el = document.getElementById('forest-duration-chips'); if(!el) return;
+  const isCustom = !FOREST_DURATIONS.includes(forestDuration);
   el.innerHTML = FOREST_DURATIONS.map(m=>
     `<button class="chip ${forestDuration===m?'on':''}" onclick="setForestDuration(${m})">${m} min</button>`
-  ).join('') + `<button class="chip ${!FOREST_DURATIONS.includes(forestDuration)?'on':''}" onclick="customForestDuration()">Outro</button>`;
+  ).join('') + `<button class="chip ${isCustom?'on':''}" onclick="toggleCustomForestDuration()">${isCustom ? formatDuration(forestDuration) : 'Outro'}</button>`;
+  if(!isCustom) document.getElementById('forest-custom-duration-wrap').style.display='none';
   updateForestClockDisplay();
 }
 function setForestDuration(m){ forestDuration=m; forestRemaining=m*60; buildForestDurationChips(); }
-function customForestDuration(){
-  const v = prompt('Duração em minutos:', forestDuration);
-  const n = parseInt(v);
-  if(n && n>0 && n<300){ forestDuration=n; forestRemaining=n*60; buildForestDurationChips(); }
+function toggleCustomForestDuration(){
+  const wrap = document.getElementById('forest-custom-duration-wrap');
+  const opening = wrap.style.display==='none';
+  wrap.style.display = opening ? 'block' : 'none';
+  if(opening){
+    document.getElementById('forest-custom-hours').value = Math.floor(forestDuration/60);
+    document.getElementById('forest-custom-minutes').value = forestDuration%60;
+  }
+}
+function applyCustomForestDuration(){
+  const h = parseInt(document.getElementById('forest-custom-hours').value)||0;
+  const m = parseInt(document.getElementById('forest-custom-minutes').value)||0;
+  const total = h*60+m;
+  if(total<1 || total>300){ alert('Escolha um tempo entre 1 minuto e 5 horas.'); return; }
+  forestDuration=total; forestRemaining=total*60;
+  buildForestDurationChips();
 }
 function updateForestClockDisplay(){
   const mm = String(Math.floor(forestRemaining/60)).padStart(2,'0');
@@ -2680,13 +2735,81 @@ function renderForestChart(elId, data, showDay){
 
 // ---------- util ----------
 function esc(s){ return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
-const SECONDARY_TABS = ['trofeus','areas','reliquias','forja','memoria'];
+let navOverflowIds = [];
+function rebuildBottomNav(){
+  const cfg = S.navConfig
+    .filter(c=>!c.hidden)
+    .map(c=>{ const def = navItemDef(c.id); if(!def) return null; return { id:c.id, icon:def.icon, label:c.label||def.label }; })
+    .filter(Boolean);
+  const bottomItems = cfg.slice(0,5);
+  const overflowItems = cfg.slice(5);
+  navOverflowIds = overflowItems.map(i=>i.id);
+
+  const nav = document.getElementById('bottom-nav');
+  if(nav){
+    nav.innerHTML = bottomItems.map(i=>
+      `<button onclick="showTab('${i.id}')" id="btn-${i.id}"><span class="nav-ico">${i.icon}</span><span class="nav-lbl">${esc(i.label)}</span></button>`
+    ).join('') + (overflowItems.length ? `<button onclick="openMoreSheet()" id="btn-more"><span class="nav-ico">☰</span><span class="nav-lbl">Mais</span></button>` : '');
+  }
+  const sheetGrid = document.querySelector('#sheet-more .sheet-grid');
+  if(sheetGrid){
+    sheetGrid.innerHTML = overflowItems.map(i=>
+      `<div class="sheet-item" onclick="showTab('${i.id}')"><span class="nav-ico">${i.icon}</span><span class="nav-lbl">${esc(i.label)}</span></div>`
+    ).join('');
+  }
+  const activeTab = document.querySelector('.tab.active');
+  if(activeTab) highlightNavButton(activeTab.id);
+}
+function highlightNavButton(id){
+  document.querySelectorAll('#bottom-nav button').forEach(b=>b.classList.remove('active'));
+  if(navOverflowIds.includes(id)) document.getElementById('btn-more')?.classList.add('active');
+  else document.getElementById('btn-'+id)?.classList.add('active');
+}
+function renderNavSettings(){
+  const el = document.getElementById('nav-settings-list'); if(!el) return;
+  el.innerHTML = S.navConfig.map((c,i)=>{
+    const def = navItemDef(c.id); if(!def) return '';
+    const label = c.label || def.label;
+    const isMemoria = c.id==='memoria';
+    return `<div class="nav-settings-row">
+      <span class="nav-ico">${def.icon}</span>
+      <input class="nav-settings-name" value="${esc(label)}" onchange="renameNavItem('${c.id}', this.value)">
+      <div class="nav-settings-actions">
+        <button class="nav-settings-btn" onclick="moveNavItem('${c.id}',-1)" ${i===0?'disabled':''}>▲</button>
+        <button class="nav-settings-btn" onclick="moveNavItem('${c.id}',1)" ${i===S.navConfig.length-1?'disabled':''}>▼</button>
+        ${isMemoria ? '' : `<button class="nav-settings-btn ${c.hidden?'is-hidden':''}" onclick="toggleNavItemHidden('${c.id}')">${c.hidden?'Escondido':'Visível'}</button>`}
+      </div>
+    </div>`;
+  }).join('');
+}
+function moveNavItem(id, dir){
+  const idx = S.navConfig.findIndex(c=>c.id===id); if(idx<0) return;
+  const newIdx = idx+dir; if(newIdx<0 || newIdx>=S.navConfig.length) return;
+  [S.navConfig[idx], S.navConfig[newIdx]] = [S.navConfig[newIdx], S.navConfig[idx]];
+  persist(); renderNavSettings(); rebuildBottomNav();
+}
+function toggleNavItemHidden(id){
+  if(id==='memoria') return;
+  const c = S.navConfig.find(c=>c.id===id); if(!c) return;
+  c.hidden = !c.hidden;
+  persist(); renderNavSettings(); rebuildBottomNav();
+}
+function renameNavItem(id, value){
+  const c = S.navConfig.find(c=>c.id===id); if(!c) return;
+  const def = navItemDef(id);
+  const v = value.trim();
+  c.label = (v && v!==def.label) ? v : null;
+  persist(); rebuildBottomNav();
+}
+function resetNavConfig(){
+  if(!confirm('Restaurar a navegação para o padrão original?')) return;
+  S.navConfig = defaultNavConfig();
+  persist(); renderNavSettings(); rebuildBottomNav();
+}
 function showTab(id){
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
-  document.querySelectorAll('#bottom-nav button').forEach(b=>b.classList.remove('active'));
   document.getElementById(id).classList.add('active');
-  if(SECONDARY_TABS.includes(id)) document.getElementById('btn-more')?.classList.add('active');
-  else document.getElementById('btn-'+id)?.classList.add('active');
+  highlightNavButton(id);
   closeMoreSheet();
   window.scrollTo({top:0, behavior:'smooth'});
   // partículas 3D do painel de Ascensão: só rodam enquanto a aba Perfil está visível
