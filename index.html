@@ -420,6 +420,10 @@ label.f { font-size:.6rem; color:var(--dim); letter-spacing:1px; text-transform:
     <div id="mr-img"></div>
     <h2 id="mr-title" style="margin:10px 0;"></h2>
     <p id="mr-desc" style="color:var(--dim); line-height:1.6; font-size:.85rem;"></p>
+    <div style="text-align:left; margin-top:10px;">
+      <label class="f">Data que conseguiu</label>
+      <input type="date" id="mr-date" onchange="saveRelicDate(this.value)">
+    </div>
     <div id="mr-model-add" style="text-align:left; margin-top:16px;">
       <label class="f">Modelo 3D self-hosted (.glb — funciona offline)</label>
       <select id="mr-model3d-select" style="display:none;" onchange="if(this.value) document.getElementById('mr-model3d-input').value=this.value;"></select>
@@ -1200,6 +1204,7 @@ function fresh(name){ return {
 };}
 
 function today(){ return new Date().toISOString().slice(0,10); }
+function fmtISODate(iso){ if(!iso) return ''; const [y,m,d]=iso.split('-'); return `${d}/${m}/${y}`; }
 function weekKey(){ const d=new Date(); const jan=new Date(d.getFullYear(),0,1); const w=Math.ceil((((d-jan)/86400000)+jan.getDay()+1)/7); return d.getFullYear()+'-W'+w; }
 function yesterday(){ const d=new Date(); d.setDate(d.getDate()-1); return d.toISOString().slice(0,10); }
 
@@ -1286,6 +1291,7 @@ function normalize(){
   const memoriaCfg = S.navConfig.find(c=>c.id==='memoria');
   if(memoriaCfg) memoriaCfg.hidden = false; // "Sistema" nunca some, senão não dá pra reabrir essa tela pra mudar de volta
   S.areas.forEach(a=>{ if(!a.notes) a.notes=[]; });
+  S.relics.forEach(r=>{ if(r.obtainedDate===undefined) r.obtainedDate=null; });
   S.grim.forEach((g,i)=>{
     if(g.favorite===undefined) g.favorite=false;
     if(g.customPriority===undefined) g.customPriority=false;
@@ -1555,7 +1561,7 @@ function renderMissions(){
 }
 function complete(id){
   const m=S.missions.find(x=>x.id===id); if(!m||habitDone(m))return;
-  if(m.relicRewardId){ const r=S.relics.find(r=>r.id==m.relicRewardId); if(r) r.obtained=true; }
+  if(m.relicRewardId){ const r=S.relics.find(r=>r.id==m.relicRewardId); if(r){ r.obtained=true; if(!r.obtainedDate) r.obtainedDate=today(); } }
   gainXp(m.xp); bumpStreak();
   S.completed.push({title:m.title,xp:m.xp,diff:m.diff,type:m.type,date:new Date().toLocaleDateString()});
   if(m.trophyId && !S.trophies.includes(m.trophyId)){
@@ -1609,7 +1615,7 @@ function importKeep(){
 
 // ---------- áreas / relíquias ----------
 function addArea(){ const t=document.getElementById('a-title').value.trim(); if(!t)return; S.areas.push({id:Date.now(),title:t,img:document.getElementById('a-img').value,notes:[]}); document.getElementById('a-title').value=''; render(); }
-function addRelic(){ const t=document.getElementById('r-title').value.trim(); if(!t)return; S.relics.push({id:Date.now(),title:t,img:document.getElementById('r-img').value,model3d:document.getElementById('r-model3d').value.trim()||null,model:document.getElementById('r-model').value.trim(),desc:document.getElementById('r-desc').value,obtained:false}); document.getElementById('r-title').value=''; document.getElementById('r-model3d').value=''; document.getElementById('r-model').value=''; render(); }
+function addRelic(){ const t=document.getElementById('r-title').value.trim(); if(!t)return; S.relics.push({id:Date.now(),title:t,img:document.getElementById('r-img').value,model3d:document.getElementById('r-model3d').value.trim()||null,model:document.getElementById('r-model').value.trim(),desc:document.getElementById('r-desc').value,obtained:false,obtainedDate:null}); document.getElementById('r-title').value=''; document.getElementById('r-model3d').value=''; document.getElementById('r-model').value=''; render(); }
 function renderAreas(){ document.getElementById('list-areas').innerHTML=S.areas.map(a=>{
   const n=(a.notes||[]).length;
   return `<div class="area-card" style="background-image:url('${esc(a.img)}')" onclick="openAreaModal(${a.id})">
@@ -1744,7 +1750,7 @@ function renderRelics(){
   const list = S.relics.filter(r=>r.obtained);
   // assinatura dos dados relevantes: se nada mudou, não mexe no DOM — preserva os
   // viewers 3D já montados (render() roda a cada mudança de estado, tipo ganhar XP)
-  const sig = list.map(r=>[r.id,r.title,r.img,r.model3d,r.model].join('')).join('');
+  const sig = list.map(r=>[r.id,r.title,r.img,r.model3d,r.model,r.obtainedDate].join('')).join('');
   if(sig === relicsGridSig) return;
   relicsGridSig = sig;
   document.getElementById('list-relics').innerHTML = list.map(r=>{
@@ -1752,7 +1758,8 @@ function renderRelics(){
     const media = r.model3d
       ? `<div class="relic-3d-mount" id="relic3d-${r.id}" data-url="${esc(r.model3d)}" onclick="event.stopPropagation()"></div>`
       : (r.img ? `<img src="${esc(r.img)}">` : '');
-    return `<div class="relic-card" onclick="openRelic(${r.id})">${media}<div style="font-size:.75rem; font-weight:600;">${esc(r.title)}${badge}</div></div>`;
+    const dateLine = r.obtainedDate ? `<div style="font-size:.62rem; color:var(--dim); margin-top:2px;">${fmtISODate(r.obtainedDate)}</div>` : '';
+    return `<div class="relic-card" onclick="openRelic(${r.id})">${media}<div style="font-size:.75rem; font-weight:600;">${esc(r.title)}${badge}</div>${dateLine}</div>`;
   }).join('');
   observeRelic3DMounts();
 }
@@ -1846,6 +1853,7 @@ function openRelic(id){ const r=S.relics.find(x=>x.id===id); if(!r)return;
   mrCurrentId = id;
   document.getElementById('mr-title').innerText=r.title;
   document.getElementById('mr-desc').innerText=r.desc||'Uma relíquia misteriosa.';
+  document.getElementById('mr-date').value = r.obtainedDate || '';
   document.getElementById('mr-model3d-input').value = r.model3d || '';
   populateModelPicker('mr-model3d-select', r.model3d || '');
   document.getElementById('mr-model-input').value = r.model || '';
@@ -1869,6 +1877,11 @@ function openRelic(id){ const r=S.relics.find(x=>x.id===id); if(!r)return;
 function closeRelicModal(){
   if(window.disposeGlb3D) disposeGlb3D();
   document.getElementById('modal-relic').style.display='none';
+}
+function saveRelicDate(value){
+  const r = S.relics.find(x=>x.id===mrCurrentId); if(!r) return;
+  r.obtainedDate = value || null;
+  render();
 }
 function saveRelicModelFromModal(){
   const r = S.relics.find(x=>x.id===mrCurrentId); if(!r) return;
@@ -2430,6 +2443,7 @@ function renderEdit(){
       </div>
       <label class="f">Descrição</label><textarea onchange="S.relics[${i}].desc=this.value;render()">${esc(r.desc||'')}</textarea>
       <label class="f">Obtida?</label><select onchange="S.relics[${i}].obtained=this.value==='sim';render()"><option value="nao" ${!r.obtained?'selected':''}>Não</option><option value="sim" ${r.obtained?'selected':''}>Sim</option></select>
+      <label class="f">Data que conseguiu</label><input type="date" value="${r.obtainedDate||''}" onchange="S.relics[${i}].obtainedDate=this.value||null;render()">
       <button class="btn danger" onclick="S.relics.splice(${i},1);render()">Excluir</button>
     </div>`).join('');
   S.relics.forEach(r=>populateModelPicker('edit-model3d-select-'+r.id, r.model3d||''));
