@@ -1050,7 +1050,15 @@ async function searchJikan(){
     if(type==='Mangá' || type==='Anime'){
       const endpoint = type==='Mangá' ? 'manga' : 'anime';
       const res = await fetch(`https://api.jikan.moe/v4/${endpoint}?q=${encodeURIComponent(title)}&limit=5`);
-      const data = await res.json();
+      const data = await res.json().catch(()=>({}));
+      if(res.status===429){
+        box.innerHTML = '<div class="jikan-loading">O MyAnimeList (Jikan) limitou as buscas por excesso de requisições. Espera uns 10-15s e tenta de novo.</div>';
+        return;
+      }
+      if(!res.ok){
+        box.innerHTML = `<div class="jikan-loading">A API do MyAnimeList respondeu com erro ${res.status}${data.message?': '+esc(data.message):''}. Pode ser instabilidade temporária deles — tenta de novo em instantes.</div>`;
+        return;
+      }
       list = (data.data||[]).map(item=>({
         title: item.title,
         cover: item.images?.jpg?.image_url || '',
@@ -1103,7 +1111,8 @@ async function searchJikan(){
       </div>`).join('');
     window._searchCache = list;
   }catch(e){
-    box.innerHTML = '<div class="jikan-loading">Erro ao buscar. Tente de novo em alguns segundos.</div>';
+    console.error('Erro na busca automática:', e);
+    box.innerHTML = `<div class="jikan-loading">Erro ao buscar (${esc(e.message||'desconhecido')}). Tente de novo em alguns segundos.</div>`;
   }
 }
 function applyJikanResult(i){
